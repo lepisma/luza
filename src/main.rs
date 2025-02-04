@@ -54,9 +54,11 @@ enum ActionDisplay {
     Center
 }
 
+#[derive(Clone)]
 struct Action {
     action_display_choice: ActionDisplay,
-    pattern_line_choice: usize,
+    color_choice: Tile,
+    pattern_line_choice: Option<usize>,
 }
 
 trait Validate {
@@ -266,48 +268,6 @@ fn has_no_tiles(display: FactoryDisplayState) -> bool {
     display.values().sum::<usize>() == 0
 }
 
-fn pick_random_display(state: &State) -> Option<ActionDisplay> {
-    let mut rng = rand::rng();
-
-    // Check which displays have items
-    let active_displays: Vec<(usize, FactoryDisplayState)> = state.factory_displays
-        .clone()
-        .into_iter()
-        .enumerate()
-        .filter(|(_i, x)| !has_no_tiles(x.clone()))
-        .map(|ix| ix)
-        .collect();
-
-    if !state.center.has_no_tiles() {
-        let idx = rand::random_range(..(active_displays.len() + 1));
-        if idx == active_displays.len() {
-            Some(ActionDisplay::Center)
-        } else {
-            Some(ActionDisplay::FactoryDisplay(active_displays[idx].0))
-        }
-    } else {
-        if active_displays.is_empty() {
-            None
-        } else {
-            let (selected_display_idx, _) = active_displays.choose(&mut rng).unwrap();
-            Some(ActionDisplay::FactoryDisplay(*selected_display_idx))
-        }
-    }
-}
-
-fn pick_color(state: &State, action: ActionDisplay) -> Tile {
-    let mut rng = rand::rng();
-
-    let colors: HashSet<Tile> = match action {
-        ActionDisplay::Center => state.center.tiles.iter(),
-        ActionDisplay::FactoryDisplay(i) => state.factory_displays[i].iter(),
-    }
-        .filter_map(|(&tile, &count)| (count > 0).then_some(tile))
-        .collect();
-
-    colors.into_iter().choose(&mut rng).unwrap()
-}
-
 // Mutate the game state and take out given color tiles based on the action
 fn take_out_tiles(state: &mut State, action: ActionDisplay, color: Tile) -> Vec<Tile> {
     let count = match action {
@@ -368,48 +328,82 @@ fn find_empty_lines(state: &State, color: Tile, player_idx: usize) -> Vec<usize>
     empty_line_ids
 }
 
-fn place_tiles_random(state: &mut State, tiles: Vec<Tile>, player_idx: usize) {
-    // All tiles are of the same color
-    let color = tiles[0];
-    let mut rng = rand::rng();
+// Put tiles in the pattern and floor lines
+fn stage_tiles(state: &mut State, player_idx: usize, line: Option<usize>, color: Tile, count: usize) {
+    match line {
+        None => {
+            state.players[player_idx].floor_line += count;
+        },
+        Some(idx) => {
+            let line_size = idx + 1;
+            let space = line_size - state.players[player_idx].pattern_lines[idx].1;
 
-    let empty_lines = find_empty_lines(state, color, player_idx);
-
-    if empty_lines.is_empty() {
-        state.players[player_idx].floor_line += tiles.len();
-        state.players[player_idx].floor_line = std::cmp::min(state.players[player_idx].floor_line, 7);
-    } else {
-        let line_idx = empty_lines.choose(&mut rng).unwrap();
-        let line_size = line_idx + 1;
-        let space = line_size - state.players[player_idx].pattern_lines[*line_idx].1;
-
-        if space < tiles.len() {
-            state.players[player_idx].pattern_lines[*line_idx] = (Some(color), space);
-            // Penalize for the leftovers
-            state.players[player_idx].floor_line += tiles.len() - space;
-            state.players[player_idx].floor_line = std::cmp::min(state.players[player_idx].floor_line, 7);
-        } else {
-            state.players[player_idx].pattern_lines[*line_idx] = (Some(color), tiles.len());
+            if space < count {
+                state.players[player_idx].pattern_lines[idx] = (Some(color), space);
+                // Penalize for the leftovers
+                state.players[player_idx].floor_line += count - space;
+            } else {
+                state.players[player_idx].pattern_lines[idx] = (Some(color), count);
+            }
         }
     }
+
+    // Clamp floor line
+    state.players[player_idx].floor_line = std::cmp::min(state.players[player_idx].floor_line, 7);
+}
+
+// List all valid lines that can be considered for given color and player. None
+// means choosing floor line.
+fn list_valid_lines(state: &State, player_idx: usize, color: Tile) -> Vec<Option<usize>> {
+    let empty_lines = find_empty_lines(state, color, player_idx);
+    let mut lines: Vec<Option<usize>> = empty_lines.iter().map(|&i| Some(i)).collect();
+    lines.push(None);
+    lines
+}
+
+// List all valid actions available to the player
+fn list_valid_actions(state: &State, player_idx: usize) -> Vec<Action> {
+    let mut actions: Vec<Action> = Vec::new();
+
+    for display_idx in 0..state.factory_displays.len() {
+        if state.factory_displays[display_idx].is_empty() {
+            continue;
+        }
+
+        for color in COLORS {
+            if state.factory_displays[display_idx][&color] > 0 {
+                for line in list_valid_lines(state, player_idx, color) {
+                    actions.push(Action {
+                        action_display_choice: ActionDisplay::FactoryDisplay(display_idx),
+                        color_choice: color,
+                        pattern_line_choice: line,
+                    })
+                }
+            }
+        }
+    }
+
+    if !state.center.has_no_tiles() {
+        for color in COLORS {
+            if state.center.tiles[&color] > 0 {
+                for line in list_valid_lines(state, player_idx, color) {
+                    actions.push(Action {
+                        action_display_choice: ActionDisplay::Center,
+                        color_choice: color,
+                        pattern_line_choice: line,
+                    })
+                }
+            }
+        }
+    }
+
+    actions
 }
 
 fn play_random(state: &mut State, player_idx: usize) {
-    // Pick the place for taking tiles
-    let action = pick_random_display(state).expect("No tiles left");
-    let color = pick_color(state, action);
-
-    let tiles = take_out_tiles(state, action, color);
-    // In case the action involves picking from center, take the starting marker
-    // if not already taken
-    if let ActionDisplay::Center = action {
-        if state.center.starting_marker {
-            state.players[player_idx].starting_marker = true;
-            state.center.starting_marker = false
-        }
-    }
-
-    place_tiles_random(state, tiles, player_idx);
+    let mut rng = rand::rng();
+    let action = list_valid_actions(state, player_idx).choose(&mut rng).unwrap().clone();
+    take_action(state, player_idx, action);
 }
 
 fn count_continuous(array: &[bool; 5], anchor: usize) -> usize {
@@ -512,13 +506,7 @@ fn score_placement(wall: &[[bool; 5]; 5], row_idx: usize, color: Tile) -> i32 {
     score
 }
 
-fn execute_placement(wall: &mut [[bool; 5]; 5], row_idx: usize, color: Tile) {
-    let col_idx = WALL_COLORS[row_idx].iter().position(|&x| x == color).unwrap();
-    wall[row_idx][col_idx] = true;
-}
-
-// Build the wall and score players
-fn score(state: &mut State, player_idx: usize) {
+fn tile_wall_and_score(state: &mut State, player_idx: usize) {
     let mut accumulator: i32 = 0;
 
     let mut tiling_points = 0;
@@ -527,7 +515,8 @@ fn score(state: &mut State, player_idx: usize) {
         if state.players[player_idx].pattern_lines[i].1 == line_size {
             let color = state.players[player_idx].pattern_lines[i].0.unwrap();
             tiling_points += score_placement(&state.players[player_idx].wall, i, color);
-            execute_placement(&mut state.players[player_idx].wall, i, color);
+            let col_idx = WALL_COLORS[i].iter().position(|&x| x == color).unwrap();
+            state.players[player_idx].wall[i][col_idx] = true;
             state.players[player_idx].pattern_lines[i] = (None, 0);
         }
     }
@@ -540,7 +529,7 @@ fn score(state: &mut State, player_idx: usize) {
     log::debug!("P{} lost {} as penalties", player_idx, penalties);
 
     state.players[player_idx].score += accumulator;
-    // TODO: Remove this to clip the scores
+    // NOTE: Remove this to clip the scores
     // state.players[player_idx].score = std::cmp::max(state.players[player_idx].score, 0);
 
     state.players[player_idx].floor_line = 0;
@@ -557,7 +546,7 @@ fn is_game_over(state: &State) -> bool {
     false
 }
 
-// Tell if one of the player has starting marker
+// Tell if one of the players has starting marker
 fn first_player(state: &State) -> Option<usize> {
     for i in 0..state.players.len() {
         if state.players[i].starting_marker {
@@ -575,6 +564,23 @@ fn winner(state: &State) -> usize {
         .max_by_key(|(_i, p)| p.score)
         .unwrap()
         .0
+}
+
+// Apply action to the state for the given player. Assume that the action is
+// valid and won't cause any issue. The action generator has to ensure this.
+fn take_action(state: &mut State, player_idx: usize, action: Action) {
+    let tiles = take_out_tiles(state, action.action_display_choice, action.color_choice);
+
+    // In case the action involves picking from center, take the starting marker
+    // if not already taken
+    if let ActionDisplay::Center = action.action_display_choice {
+        if state.center.starting_marker {
+            state.players[player_idx].starting_marker = true;
+            state.center.starting_marker = false
+        }
+    }
+
+    stage_tiles(state, player_idx, action.pattern_line_choice, action.color_choice, tiles.len());
 }
 
 fn main() {
@@ -607,13 +613,14 @@ fn main() {
                 state.rounds += 1;
                 break;
             }
+            log::info!("Picking from {} actions for P{}", list_valid_actions(&state, current_player).len(), current_player);
             play_random(&mut state, current_player);
             current_player += 1;
             current_player %= n_players;
         }
 
         for i in 0..n_players {
-            score(&mut state, i);
+            tile_wall_and_score(&mut state, i);
             log::debug!("Score P{}: {}", i, state.players[i].score);
         }
 
