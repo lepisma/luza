@@ -47,6 +47,18 @@ struct State {
     rounds: usize,
 }
 
+// Action that tells which tile stash is picked by a player
+#[derive(Clone, Copy, Debug)]
+enum ActionDisplay {
+    FactoryDisplay(usize),
+    Center
+}
+
+struct Action {
+    action_display_choice: ActionDisplay,
+    pattern_line_choice: usize,
+}
+
 trait Validate {
     fn validate(&self) -> Result<()>;
 }
@@ -248,13 +260,6 @@ impl Validate for State {
 
         Ok(())
     }
-}
-
-// Action that tells which tile stash is picked by a player
-#[derive(Clone, Copy, Debug)]
-enum ActionDisplay {
-    FactoryDisplay(usize),
-    Center
 }
 
 fn has_no_tiles(display: FactoryDisplayState) -> bool {
