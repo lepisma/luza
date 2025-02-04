@@ -391,9 +391,21 @@ fn score_placement(wall: &[[bool; 5]; 5], row_idx: usize, color: Tile) -> i32 {
     }
 
     // Check if color gets completed
-    let color_completed: bool = false;
-    // TODO
-    if color_completed {
+    let mut color_coverage: usize = 0;
+
+    for i in 0..5 {
+        for j in 0..5 {
+            if i == row_idx && j == col_idx {
+                color_coverage += 1;
+            } else {
+                if WALL_COLORS[i][j] == color && wall[i][j] {
+                    color_coverage += 1;
+                }
+            }
+        }
+    }
+
+    if color_coverage == 5 {
         score += 10
     }
 
@@ -428,6 +440,7 @@ fn score(state: &mut State, player_idx: usize) {
     log::debug!("P{} lost {} as penalties", player_idx, penalties);
 
     state.players[player_idx].score += accumulator;
+    // TODO: Remove this to clip the scores
     // state.players[player_idx].score = std::cmp::max(state.players[player_idx].score, 0);
 
     state.players[player_idx].floor_line = 0;
