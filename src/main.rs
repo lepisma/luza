@@ -1,6 +1,7 @@
 use std::{collections::HashMap, vec};
 use rand::seq::{IndexedRandom, IteratorRandom};
 use std::collections::HashSet;
+use std::convert::TryInto;
 
 use anyhow::{anyhow, Result};
 
@@ -311,17 +312,61 @@ fn play_random(state: &mut State, player_idx: usize) {
     place_tiles_random(state, tiles, player_idx);
 }
 
+fn count_continuous(array: &[bool; 5], anchor: usize) -> usize {
+    let mut count = 0;
+    let mut curr: i32;
+
+    for i in 1..5 {
+        curr = anchor as i32 - i;
+        if curr < 0 {
+            break;
+        }
+        if array[curr as usize] {
+            count += 1;
+        } else {
+            break;
+        }
+    }
+
+    for i in 1..5 {
+        curr = anchor as i32 + i;
+        if curr > 4 {
+            break;
+        }
+        if array[curr as usize] {
+            count += 1;
+        } else {
+            break;
+        }
+    }
+
+    count
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_count_continuous() {
+        assert_eq!(count_continuous(&[false, true, true, false, false], 0), 2);
+        assert_eq!(count_continuous(&[false, true, false, false, false], 2), 1);
+        assert_eq!(count_continuous(&[false, false, false, false, false], 2), 0);
+        assert_eq!(count_continuous(&[false, true, true, true, false], 4), 3);
+        assert_eq!(count_continuous(&[true, true, true, false, false], 3), 3);
+    }
+}
+
 fn score_placement(wall: &[[bool; 5]; 5], row_idx: usize, color: Tile) -> i32 {
     let mut score: i32 = 0;
 
     let col_idx = WALL_COLORS[row_idx].iter().position(|&x| x == color).unwrap();
     let col = (0..5).map(|i| wall[row_idx][i]).collect::<Vec<bool>>();
 
-    // TODO Basics
-    // Check horizontal
-    // Check vertical
-    // Ensure edge cases
-    score += 1;
+    // Basic adjacency checks
+    let col_continuous = count_continuous(&col.clone().try_into().expect("Failed to convert column in a bool array"), col_idx);
+    let row_continuous = count_continuous(&wall[row_idx], row_idx);
+    score += std::cmp::max((col_continuous + row_continuous) as i32, 1);
 
     // Check if col gets completed
     let col_completed: bool = col
@@ -364,18 +409,23 @@ fn execute_placement(wall: &mut [[bool; 5]; 5], row_idx: usize, color: Tile) {
 fn score(state: &mut State, player_idx: usize) {
     let mut accumulator: i32 = 0;
 
+    let mut tiling_points = 0;
     for i in 0..5 {
         let line_size = i + 1;
         if state.players[player_idx].pattern_lines[i].1 == line_size {
             let color = state.players[player_idx].pattern_lines[i].0.unwrap();
-            let points = score_placement(&state.players[player_idx].wall, i, color);
+            tiling_points += score_placement(&state.players[player_idx].wall, i, color);
             execute_placement(&mut state.players[player_idx].wall, i, color);
             state.players[player_idx].pattern_lines[i] = (None, 0);
         }
     }
+    accumulator += tiling_points;
+    log::debug!("P{} got {} in tiling", player_idx, tiling_points);
 
     // Take penalties, if any
-    accumulator -= FLOOR_PENALTIES.iter().take(state.players[player_idx].floor_line).sum::<usize>() as i32;
+    let penalties = FLOOR_PENALTIES.iter().take(state.players[player_idx].floor_line).sum::<usize>() as i32;
+    accumulator -= penalties;
+    log::debug!("P{} lost {} as penalties", player_idx, penalties);
 
     state.players[player_idx].score += accumulator;
     // state.players[player_idx].score = std::cmp::max(state.players[player_idx].score, 0);
