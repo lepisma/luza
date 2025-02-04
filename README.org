@@ -1,0 +1,11 @@
+#+TITLE: luza
+
+Learn to play board games by letting a machine learn to play board games.
+
+* Azul
+To start with, I want to make a value estimator that works from game snapshot
+and then tell the value of each player's state.
+
+This firstly needs an image to state mapper which will be using LLM APIs. Then
+we need to estimate the value of state which is the estimate of the score one
+will get over a random set of runs.
