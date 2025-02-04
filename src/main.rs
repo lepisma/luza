@@ -51,6 +51,101 @@ trait Validate {
     fn validate(&self) -> Result<()>;
 }
 
+trait Representable {
+    fn represent(&self) -> Vec<f64>;
+}
+
+impl<T: Representable> Representable for Vec<T> {
+    fn represent(&self) -> Vec<f64> {
+        let mut vec = Vec::new();
+        for item in self {
+            vec.extend(item.represent());
+        }
+        vec
+    }
+}
+
+impl Representable for Tile {
+    fn represent(&self) -> Vec<f64> {
+        let mut vec = vec![0.0; 5];
+        let idx = COLORS.iter().position(|c| c == self).unwrap();
+        vec[idx] = 1.0;
+        vec
+    }
+}
+
+impl Representable for FactoryDisplayState {
+    fn represent(&self) -> Vec<f64> {
+        let mut vec = Vec::with_capacity(5 * (5 + 1));
+
+        for i in 0..5 {
+            let color = COLORS[i];
+            vec.extend(color.represent().iter());
+            vec.push(self[&color] as f64)
+        }
+
+        vec
+    }
+}
+
+impl Representable for CenterState {
+    fn represent(&self) -> Vec<f64> {
+        let mut vec = Vec::with_capacity(5 * (5 + 1) + 1);
+
+        for i in 0..5 {
+            let color = COLORS[i];
+            vec.extend(color.represent().iter());
+            vec.push(self.tiles[&color] as f64);
+        }
+
+        vec.push(self.starting_marker as i32 as f64);
+        vec
+    }
+}
+
+impl Representable for PlayerState {
+    fn represent(&self) -> Vec<f64> {
+        // The size is based on flat representation of all items in the state
+        let mut vec = Vec::with_capacity(1 + (5 * 5) + 5 * (5 + 1) + 1 + 1);
+
+        vec.push(self.score as f64);
+        for i in 0..5 {
+            for j in 0..5 {
+                vec.push(self.wall[i][j] as usize as f64);
+            }
+        }
+
+        for i in 0..5 {
+            match self.pattern_lines[i] {
+                (None, count) => {
+                    vec.extend(vec![0.0; 5].iter());
+                    vec.push(count as f64);
+                },
+                (Some(tile), count) => {
+                    vec.extend(tile.represent().iter());
+                    vec.push(count as f64);
+                },
+            }
+        }
+
+        vec.push(self.floor_line as f64);
+        vec.push(self.starting_marker as i32 as f64);
+        vec
+    }
+}
+
+impl Representable for State {
+    fn represent(&self) -> Vec<f64> {
+        let mut vec = Vec::new();
+
+        vec.extend(self.factory_displays.represent());
+        vec.extend(self.center.represent());
+        vec.extend(self.players.represent());
+        vec.push(self.rounds as f64);
+        vec
+    }
+}
+
 impl CenterState {
     fn new() -> Self {
         Self {
