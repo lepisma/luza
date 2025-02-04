@@ -405,6 +405,15 @@ fn first_player(state: &State) -> Option<usize> {
     None
 }
 
+fn winner(state: &State) -> usize {
+    state.players
+        .iter()
+        .enumerate()
+        .max_by_key(|(_i, p)| p.score)
+        .unwrap()
+        .0
+}
+
 fn main() {
     env_logger::init();
 
@@ -451,6 +460,8 @@ fn main() {
     }
 
     for i in 0..n_players {
-        println!("Player {} score: {:?}\n", i, state.players[i]);
+        log::info!("Final score P{}: {}", i, state.players[i].score);
     }
+
+    log::info!("Winner is P{}", winner(&state));
 }
