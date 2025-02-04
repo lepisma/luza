@@ -24,7 +24,7 @@ const WALL_COLORS: [[Tile; 5]; 5] = [
 
 type FactoryDisplayState = HashMap<Tile, usize>;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct CenterState {
     tiles: HashMap<Tile, usize>,
     starting_marker: bool,
@@ -39,7 +39,7 @@ struct PlayerState {
     starting_marker: bool,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct State {
     factory_displays: Vec<FactoryDisplayState>,
     center: CenterState,
@@ -54,7 +54,7 @@ enum ActionDisplay {
     Center
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 struct Action {
     action_display_choice: ActionDisplay,
     color_choice: Tile,
@@ -400,12 +400,6 @@ fn list_valid_actions(state: &State, player_idx: usize) -> Vec<Action> {
     actions
 }
 
-fn play_random(state: &mut State, player_idx: usize) {
-    let mut rng = rand::rng();
-    let action = list_valid_actions(state, player_idx).choose(&mut rng).unwrap().clone();
-    take_action(state, player_idx, action);
-}
-
 fn count_continuous(array: &[bool; 5], anchor: usize) -> usize {
     let mut count = 0;
     let mut curr: i32;
@@ -521,16 +515,13 @@ fn tile_wall_and_score(state: &mut State, player_idx: usize) {
         }
     }
     accumulator += tiling_points;
-    log::debug!("P{} got {} in tiling", player_idx, tiling_points);
 
     // Take penalties, if any
     let penalties = FLOOR_PENALTIES.iter().take(state.players[player_idx].floor_line).sum::<usize>() as i32;
     accumulator -= penalties;
-    log::debug!("P{} lost {} as penalties", player_idx, penalties);
 
     state.players[player_idx].score += accumulator;
-    // NOTE: Remove this to clip the scores
-    // state.players[player_idx].score = std::cmp::max(state.players[player_idx].score, 0);
+    state.players[player_idx].score = std::cmp::max(state.players[player_idx].score, 0);
 
     state.players[player_idx].floor_line = 0;
 }
@@ -583,6 +574,27 @@ fn take_action(state: &mut State, player_idx: usize, action: Action) {
     stage_tiles(state, player_idx, action.pattern_line_choice, action.color_choice, tiles.len());
 }
 
+fn calculate_reward(state: &State, player_idx: usize, action: Action) -> i32 {
+    let mut future_state = state.clone();
+    take_action(&mut future_state, player_idx, action);
+    tile_wall_and_score(&mut future_state, player_idx);
+
+    // Calculate what gain will we have just from this action
+    future_state.players[player_idx].score - state.players[player_idx].score
+}
+
+fn play_random(state: &mut State, player_idx: usize) {
+    let mut rng = rand::rng();
+    let action = list_valid_actions(state, player_idx).choose(&mut rng).unwrap().clone();
+    take_action(state, player_idx, action);
+}
+
+fn play_greedy(state: &mut State, player_idx: usize) {
+    let action = list_valid_actions(state, player_idx).into_iter().max_by_key(|a| calculate_reward(state, player_idx, a.clone())).unwrap().clone();
+    log::debug!("Action: {:?}", action);
+    take_action(state, player_idx, action);
+}
+
 fn main() {
     env_logger::init();
 
@@ -614,7 +626,7 @@ fn main() {
                 break;
             }
             log::info!("Picking from {} actions for P{}", list_valid_actions(&state, current_player).len(), current_player);
-            play_random(&mut state, current_player);
+            play_greedy(&mut state, current_player);
             current_player += 1;
             current_player %= n_players;
         }
