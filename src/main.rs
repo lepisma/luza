@@ -160,6 +160,35 @@ impl Representable for State {
     }
 }
 
+impl Representable for ActionDisplay {
+    fn represent(&self) -> Vec<f64> {
+        let mut vec: Vec<f64> = Vec::with_capacity(1);
+        // Note that this will make the representation very tied to the number
+        // of players
+        match self {
+            Self::FactoryDisplay(i) => vec.push(*i as f64),
+            Self::Center => vec.push(-1.0)
+        }
+
+        vec
+    }
+}
+
+impl Representable for Action {
+    fn represent(&self) -> Vec<f64> {
+        let mut vec = Vec::new();
+
+        vec.extend(self.action_display_choice.represent());
+        vec.extend(self.color_choice.represent());
+        match self.pattern_line_choice {
+            None => vec.push(5.0),
+            Some(line_idx) => vec.push(line_idx as f64),
+        }
+
+        vec
+    }
+}
+
 impl CenterState {
     fn new() -> Self {
         Self {
