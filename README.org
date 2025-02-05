@@ -1,11 +1,23 @@
 #+TITLE: luza
 
-Learn to play board games by letting a machine learn to play board games.
+Learn to play board games by letting a machine learn to play board games and
+/telling/ me good enough (and easy to follow) heuristics.
+
+As of now I am using Azul as the test case for this. Slowly and slowly a set of
+abstractions will follow that will allow other games to be used.
 
 * Azul
-To start with, I want to make a value estimator that works from game snapshot
-and then tell the value of each player's state.
+To start with, we will make a value estimator that works from game snapshot and
+then tell the value of each player's state.  Since the game is not very deep and
+greedy is not a super bad strategy, we might be able to approximate this cheaply
+by simple beam traversal up to a certain depth.
 
-This firstly needs an image to state mapper which will be using LLM APIs. Then
-we need to estimate the value of state which is the estimate of the score one
-will get over a random set of runs.
+After, or instead of, that we will make a system that learns tactics and
+strategies by self-play. Once a reasonable performance is achieved (say that
+this confidently beats the greedy player), we want to distill the policy to
+top-k interpretable rules. These rules might be single move tactics or
+strategies to follow over multiple moves.
+
+As of now, there is a working game simulator where n players play using 1-step
+greedy approach. You can run this using something like ~env RUST_LOG=debug cargo
+run~.
