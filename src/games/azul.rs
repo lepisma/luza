@@ -591,6 +591,26 @@ fn take_action(state: &mut State, player_idx: usize, action: Action) {
     stage_tiles(state, player_idx, action.pattern_line_choice, action.color_choice, tiles.len());
 }
 
+// Return the number of points which the given player has more than the
+// competition
+fn calculate_gain(state: &State, player_idx: usize) -> i32 {
+    let player_score = state.players[player_idx].score;
+    let mut best_competitor_score: i32 = 0;
+
+    for offset in 1..state.players.len() {
+        let current_player_idx = (offset + player_idx) % state.players.len();
+        if offset == 1 {
+            best_competitor_score = state.players[current_player_idx].score;
+        } else {
+            if state.players[current_player_idx].score > best_competitor_score {
+                best_competitor_score = state.players[current_player_idx].score;
+            }
+        }
+    }
+
+    player_score - best_competitor_score
+}
+
 fn calculate_reward(state: &State, player_idx: usize, action: Action) -> i32 {
     let mut future_state = state.clone();
     take_action(&mut future_state, player_idx, action);
