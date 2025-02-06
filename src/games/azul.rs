@@ -620,12 +620,16 @@ fn calculate_reward(state: &State, player_idx: usize, action: Action) -> i32 {
     future_state.players[player_idx].score - state.players[player_idx].score
 }
 
+// Choose a random action from the list of valid actions available to the
+// player.
 pub fn play_random(state: &mut State, player_idx: usize) {
     let mut rng = rand::rng();
     let action = list_valid_actions(state, player_idx).choose(&mut rng).unwrap().clone();
     take_action(state, player_idx, action);
 }
 
+// See all possible actions and choose the one that has highest immediate reward
+// for the player.
 pub fn play_greedy(state: &mut State, player_idx: usize) {
     let action = list_valid_actions(state, player_idx).into_iter().max_by_key(|a| calculate_reward(state, player_idx, a.clone())).unwrap().clone();
     log::debug!("Action: {:?}", action);
