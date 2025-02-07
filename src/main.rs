@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use games::{azul::{self, play_greedy}, Validate};
+use games::{azul, Validate, GameState};
 
 mod games;
 
@@ -24,12 +24,11 @@ fn main() {
     env_logger::init();
 
     // Number of simulations to run for reporting
-    let n_games: usize = 100;
+    let n_games: usize = 20;
 
     let players = [
         azul::play_greedy,
-        azul::play_greedy,
-        azul::play_random,
+        azul::play_mcts,
     ];
     let n_players = players.len();
 
@@ -60,7 +59,7 @@ fn main() {
             azul::refill_tiles(&mut state);
             loop {
                 // If tiles are over, round stops
-                if state.has_no_tiles() {
+                if state.is_round_over() {
                     state.rounds += 1;
                     break;
                 }
@@ -75,7 +74,7 @@ fn main() {
                 log::debug!("Score P{}: {}", i, state.players[i].score);
             }
 
-            if azul::is_game_over(&state) {
+            if state.is_game_over() {
                 break;
             }
         }

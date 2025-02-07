@@ -1,4 +1,4 @@
-use super::{Representable, Validate};
+use super::{Representable, Validate, GameState};
 use std::{collections::HashMap, vec};
 use anyhow::{anyhow, Result};
 use rand::seq::IndexedRandom;
@@ -50,7 +50,7 @@ enum ActionDisplay {
     Center
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Copy)]
 pub struct Action {
     action_display_choice: ActionDisplay,
     color_choice: Tile,
@@ -207,7 +207,8 @@ impl PlayerState {
         }
     }
 
-    fn is_complete(&self) -> bool {
+    // Tell if a player has completed at last one row. If this happen, the game gets over after the current round.
+    fn has_completed_row(&self) -> bool {
         for i in 0..5 {
             if self.wall[i].iter().all(|&x| x) {
                 return true;
@@ -228,9 +229,9 @@ fn build_empty_display() -> HashMap<Tile, usize> {
     ])
 }
 
-impl State {
+impl GameState for State {
     // Create new game with empty displays
-    pub fn new(n_players: usize) -> Self {
+    fn new(n_players: usize) -> Self {
         let n_displays = (n_players * 2) + 1;
         let mut factory_displays: Vec<FactoryDisplayState> = Vec::with_capacity(n_displays);
         for _i in 0..n_displays {
@@ -245,12 +246,15 @@ impl State {
         }
     }
 
-    // Tell if the tiles are empty
-    pub fn has_no_tiles(&self) -> bool {
+    fn is_round_over(&self) -> bool {
         self.center.has_no_tiles() && self.factory_displays
             .iter()
             .map(|d| has_no_tiles(d.clone()))
             .any(|x| x)
+    }
+
+    fn is_game_over(&self) -> bool {
+        self.is_round_over() && self.players.iter().any(|p| p.has_completed_row())
     }
 }
 
@@ -541,17 +545,6 @@ pub fn tile_wall_and_score(state: &mut State, player_idx: usize) {
     state.players[player_idx].score = std::cmp::max(state.players[player_idx].score, 0);
 
     state.players[player_idx].floor_line = 0;
-}
-
-// Game is over if at least one player has completed their setup
-pub fn is_game_over(state: &State) -> bool {
-    for player in state.players.clone() {
-        if player.is_complete() {
-            return true
-        }
-    }
-
-    false
 }
 
 // Tell if one of the players has starting marker
