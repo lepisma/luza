@@ -1,7 +1,7 @@
 use super::{Representable, Validate, GameState};
 use std::{collections::HashMap, vec};
 use anyhow::{anyhow, Result};
-use rand::seq::IndexedRandom;
+use rand::{distr::{weighted::WeightedIndex, Distribution}, seq::IndexedRandom, seq::IteratorRandom, Rng};
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 enum Tile {
@@ -616,4 +616,121 @@ pub fn play_greedy(state: &mut State, player_idx: usize) {
     let action = list_valid_actions(state, player_idx).into_iter().max_by_key(|a| calculate_reward(state, player_idx, a.clone())).unwrap().clone();
     log::debug!("Action: {:?}", action);
     take_action(state, player_idx, action);
+}
+
+fn rewards_dist(rewards: Vec<i32>) -> Vec<usize> {
+    let rewards_d: Vec<i32> = rewards.iter().map(|r| *r.max(&0)).collect();
+
+    if rewards_d.iter().all(|r| *r == 0) {
+        rewards_d.iter().map(|_r| 1).collect()
+    } else {
+        rewards_d.iter().map(|r| *r as usize).collect()
+    }
+}
+
+fn mcts_ply(state: &State, player_idx: usize) -> Action {
+    let mut rng = rand::rng();
+
+    let actions = list_valid_actions(state, player_idx);
+    let rewards: Vec<i32> = actions.iter().map(|&a| calculate_reward(state, player_idx, a)).collect();
+    // Normalize rewards to return positive numbers
+    let rewards_d = rewards_dist(rewards.clone());
+
+    let epsilon = 0.05;
+    let action_idx = if rng.random_range(0.0..1.0) < epsilon {
+        (0..actions.len()).choose(&mut rng).unwrap()
+    } else {
+        let dist = WeightedIndex::new(&rewards_d).unwrap();
+        dist.sample(&mut rng)
+    };
+
+    actions[action_idx]
+}
+
+// Run MCTS guided by immediate scores
+pub fn play_mcts(state: &mut State, player_idx: usize) {
+    let n_games = 100;
+    let mut rng = rand::rng();
+
+    let actions = list_valid_actions(state, player_idx);
+    let rewards: Vec<i32> = actions.iter().map(|&a| calculate_reward(state, player_idx, a.clone())).collect();
+    // Normalize rewards to return positive numbers
+    let rewards_d = rewards_dist(rewards.clone());
+
+    // Scores, wins, total expansions
+    let mut action_log: Vec<(Vec<usize>, usize, usize)> = vec![(Vec::new(), 0, 0); actions.len()];
+
+    let mut dist: WeightedIndex<usize>;
+
+    let epsilon = 0.05;
+
+    for _ in 0..n_games {
+        let mut future_state = state.clone();
+        let action_idx: usize;
+
+        if rng.random_range(0.0..1.0) < epsilon {
+            action_idx = (0..actions.len()).choose(&mut rng).unwrap();
+        } else {
+            dist = WeightedIndex::new(&rewards_d).unwrap();
+            action_idx = dist.sample(&mut rng);
+        }
+
+        take_action(&mut future_state, player_idx, actions[action_idx]);
+        let mut next_player_idx = player_idx;
+
+        log::debug!("Scores after first move: {:?}", future_state.players.iter().map(|p| p.score).collect::<Vec<_>>());
+
+        // Now we keep rolling till the game is complete. This implementation
+        // doesn't do caching so it will not be super efficient nor effective.
+        // Every player does a weighted sampling over possible next action
+        // rewards to decide their action.
+        loop {
+            if future_state.is_game_over() {
+                break;
+            }
+
+            if future_state.is_round_over() {
+                future_state.rounds += 1;
+                for i in 0..future_state.players.len() {
+                    tile_wall_and_score(&mut future_state, i);
+                }
+                refill_tiles(&mut future_state);
+            }
+
+            next_player_idx += 1;
+            next_player_idx %= future_state.players.len();
+
+            let next_action = mcts_ply(&future_state, next_player_idx);
+            take_action(&mut future_state, next_player_idx, next_action);
+        }
+
+        log::debug!("Scores after game end: {:?}", future_state.players.iter().map(|p| p.score).collect::<Vec<_>>());
+
+        // One MC game is over, update the log
+        let mut scores = action_log[action_idx].0.clone();
+        scores.push(future_state.players[player_idx].score as usize);
+
+        action_log[action_idx] = (
+            scores,
+            action_log[action_idx].1 + ((player_idx == winner(&future_state)) as usize),
+            action_log[action_idx].2 + 1
+        );
+    }
+
+    let best_action_idx = action_log
+        .iter()
+        .enumerate()
+        .filter(|(_i, (_scores, _n_wins, n_games))| *n_games > 0)
+        .max_by(|(_i, (scores_i, _n_wins_i, _n_games_i)), (_j, (scores_j, _n_wins_j, _n_games_j))| {
+            let mean_score_i: f64 = scores_i.iter().sum::<usize>() as f64 / (n_games as f64);
+            let mean_score_j: f64 = scores_j.iter().sum::<usize>() as f64 / (n_games as f64);
+
+            mean_score_i.partial_cmp(&mean_score_j).unwrap()
+        })
+        .unwrap()
+        .0;
+
+    log::info!("Picked {:?}", action_log[best_action_idx]);
+
+    take_action(state, player_idx, actions[best_action_idx]);
 }
