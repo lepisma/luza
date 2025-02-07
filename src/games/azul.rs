@@ -584,13 +584,22 @@ fn take_action(state: &mut State, player_idx: usize, action: Action) {
     stage_tiles(state, player_idx, action.pattern_line_choice, action.color_choice, tiles.len());
 }
 
+// Return reward of taking action for given player with given game state. The
+// current score is calculated so you don't have to worry about ply count etc.
 fn calculate_reward(state: &State, player_idx: usize, action: Action) -> i32 {
-    let mut future_state = state.clone();
-    take_action(&mut future_state, player_idx, action);
-    tile_wall_and_score(&mut future_state, player_idx);
+    let mut state_clone_a = state.clone();
+    let mut state_clone_b = state.clone();
+
+    // This is needed since if this is not the first ply of the player in given
+    // round, they already might have more score than what's noted in state at
+    // the moment.
+    tile_wall_and_score(&mut state_clone_a, player_idx);
+
+    take_action(&mut state_clone_b, player_idx, action);
+    tile_wall_and_score(&mut state_clone_b, player_idx);
 
     // Calculate what gain will we have just from this action
-    future_state.players[player_idx].score - state.players[player_idx].score
+    state_clone_b.players[player_idx].score - state_clone_a.players[player_idx].score
 }
 
 // Choose a random action from the list of valid actions available to the
