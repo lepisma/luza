@@ -1,6 +1,8 @@
 use std::collections::HashMap;
+use rayon::iter::ParallelIterator;
 
 use games::{azul, Validate, GameState};
+use rayon::iter::IntoParallelIterator;
 
 mod games;
 
@@ -32,16 +34,14 @@ fn main() {
     ];
     let n_players = players.len();
 
-    // Pair of winning player id and score
-    let mut game_log: Vec<usize> = Vec::with_capacity(n_games);
     log::info!("Running {} simulations for {} players,", n_games, n_players);
 
-    for _ in 0..n_games {
+    let game_log: Vec<usize> = (0..n_games).into_par_iter().map(|_| {
         let mut state = azul::State::new(n_players);
 
         if let Err(err) = state.validate() {
             println!("{}", err);
-            return;
+            return usize::MAX;
         }
 
         loop {
@@ -83,8 +83,9 @@ fn main() {
             log::info!("Final score P{}: {}", i, state.players[i].score);
         }
         log::info!("Winner is P{}", azul::winner(&state));
-        game_log.push(azul::winner(&state));
-    }
+
+        azul::winner(&state)
+    }).collect();
 
     report(game_log, n_players);
 }

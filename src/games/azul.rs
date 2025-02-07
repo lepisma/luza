@@ -636,7 +636,7 @@ fn mcts_ply(state: &State, player_idx: usize) -> Action {
     // Normalize rewards to return positive numbers
     let rewards_d = rewards_dist(rewards.clone());
 
-    let epsilon = 0.05;
+    let epsilon = 0.10;
     let action_idx = if rng.random_range(0.0..1.0) < epsilon {
         (0..actions.len()).choose(&mut rng).unwrap()
     } else {
@@ -649,7 +649,7 @@ fn mcts_ply(state: &State, player_idx: usize) -> Action {
 
 // Run MCTS guided by immediate scores
 pub fn play_mcts(state: &mut State, player_idx: usize) {
-    let n_games = 100;
+    let n_games = 200;
     let mut rng = rand::rng();
 
     let actions = list_valid_actions(state, player_idx);
@@ -662,7 +662,7 @@ pub fn play_mcts(state: &mut State, player_idx: usize) {
 
     let mut dist: WeightedIndex<usize>;
 
-    let epsilon = 0.05;
+    let epsilon = 0.10;
 
     for _ in 0..n_games {
         let mut future_state = state.clone();
