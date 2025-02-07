@@ -26,7 +26,7 @@ fn main() {
     env_logger::init();
 
     // Number of simulations to run for reporting
-    let n_games: usize = 50;
+    let n_games: usize = 100;
 
     let players = [
         azul::play_greedy,

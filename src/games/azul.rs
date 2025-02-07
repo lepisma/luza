@@ -636,7 +636,7 @@ fn mcts_ply(state: &State, player_idx: usize) -> Action {
     // Normalize rewards to return positive numbers
     let rewards_d = rewards_dist(rewards.clone());
 
-    let epsilon = 0.10;
+    let epsilon = 0.05;
     let action_idx = if rng.random_range(0.0..1.0) < epsilon {
         (0..actions.len()).choose(&mut rng).unwrap()
     } else {
@@ -662,7 +662,7 @@ pub fn play_mcts(state: &mut State, player_idx: usize) {
 
     let mut dist: WeightedIndex<usize>;
 
-    let epsilon = 0.10;
+    let epsilon = 0.05;
 
     for _ in 0..n_games {
         let mut future_state = state.clone();
@@ -722,10 +722,10 @@ pub fn play_mcts(state: &mut State, player_idx: usize) {
         .enumerate()
         .filter(|(_i, (_scores, _n_wins, n_games))| *n_games > 0)
         .max_by(|(_i, (scores_i, _n_wins_i, _n_games_i)), (_j, (scores_j, _n_wins_j, _n_games_j))| {
-            let mean_score_i: f64 = scores_i.iter().sum::<usize>() as f64 / (n_games as f64);
-            let mean_score_j: f64 = scores_j.iter().sum::<usize>() as f64 / (n_games as f64);
+            let max_score_i = *scores_i.iter().max().unwrap();
+            let max_score_j = *scores_j.iter().max().unwrap();
 
-            mean_score_i.partial_cmp(&mean_score_j).unwrap()
+            max_score_i.cmp(&max_score_j)
         })
         .unwrap()
         .0;
