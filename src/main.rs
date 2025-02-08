@@ -70,7 +70,7 @@ fn main() {
             }
 
             for i in 0..n_players {
-                azul::tile_wall_and_score(&mut state, i);
+                azul::score_round(&mut state, i);
                 log::debug!("Score P{}: {}", i, state.players[i].score);
             }
 

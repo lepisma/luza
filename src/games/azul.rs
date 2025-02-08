@@ -521,7 +521,9 @@ fn score_placement(wall: &[[bool; 5]; 5], row_idx: usize, color: Tile) -> i32 {
     score
 }
 
-pub fn tile_wall_and_score(state: &mut State, player_idx: usize) {
+// Tile the wall and score. You can also call this in between a round but
+// remember to do this on a copy of the state.
+pub fn score_round(state: &mut State, player_idx: usize) {
     let mut accumulator: i32 = 0;
 
     let mut tiling_points = 0;
@@ -593,10 +595,10 @@ fn calculate_reward(state: &State, player_idx: usize, action: Action) -> i32 {
     // This is needed since if this is not the first ply of the player in given
     // round, they already might have more score than what's noted in state at
     // the moment.
-    tile_wall_and_score(&mut state_clone_a, player_idx);
+    score_round(&mut state_clone_a, player_idx);
 
     take_action(&mut state_clone_b, player_idx, action);
-    tile_wall_and_score(&mut state_clone_b, player_idx);
+    score_round(&mut state_clone_b, player_idx);
 
     // Calculate what gain will we have just from this action
     state_clone_b.players[player_idx].score - state_clone_a.players[player_idx].score
@@ -692,7 +694,7 @@ pub fn play_mcts(state: &mut State, player_idx: usize) {
             if future_state.is_round_over() {
                 future_state.rounds += 1;
                 for i in 0..future_state.players.len() {
-                    tile_wall_and_score(&mut future_state, i);
+                    score_round(&mut future_state, i);
                 }
                 refill_tiles(&mut future_state);
             }
@@ -730,7 +732,7 @@ pub fn play_mcts(state: &mut State, player_idx: usize) {
         .unwrap()
         .0;
 
-    log::info!("Picked {:?}", action_log[best_action_idx]);
+    log::debug!("Picked {:?}", action_log[best_action_idx]);
 
     take_action(state, player_idx, actions[best_action_idx]);
 }
