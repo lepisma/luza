@@ -3,7 +3,7 @@ use std::{collections::HashMap, vec};
 use anyhow::{anyhow, Result};
 use rand::{distr::{weighted::WeightedIndex, Distribution}, seq::IndexedRandom, seq::IteratorRandom, Rng};
 
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, serde::Serialize)]
 enum Tile {
     Black, Blue, Red, White, Yellow,
 }
@@ -20,13 +20,13 @@ const WALL_COLORS: [[Tile; 5]; 5] = [
 
 type FactoryDisplayState = HashMap<Tile, usize>;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
 struct CenterState {
     tiles: HashMap<Tile, usize>,
     starting_marker: bool,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize)]
 pub struct PlayerState {
     pub score: i32,
     wall: [[bool; 5]; 5],
@@ -35,7 +35,7 @@ pub struct PlayerState {
     pub starting_marker: bool,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct State {
     factory_displays: Vec<FactoryDisplayState>,
     center: CenterState,
@@ -44,13 +44,13 @@ pub struct State {
 }
 
 // Action that tells which tile stash is picked by a player
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, serde::Serialize)]
 enum ActionDisplay {
     FactoryDisplay(usize),
     Center
 }
 
-#[derive(Clone, Debug, Copy)]
+#[derive(Clone, Debug, Copy, serde::Serialize)]
 pub struct Action {
     action_display_choice: ActionDisplay,
     color_choice: Tile,
@@ -618,6 +618,53 @@ pub fn play_greedy(state: &mut State, player_idx: usize) {
     let action = list_valid_actions(state, player_idx).into_iter().max_by_key(|a| calculate_reward(state, player_idx, a.clone())).unwrap().clone();
     log::debug!("Action: {:?}", action);
     take_action(state, player_idx, action);
+}
+
+fn max_n_action_score(state: &State, action: Action, player_idx: usize, current_depth: usize) -> (State, Vec<i32>) {
+    let mut state_clone = state.clone();
+    take_action(&mut state_clone, player_idx, action);
+
+    // Base case
+    if current_depth == 0 || state_clone.is_game_over() {
+        return (state_clone.clone(), (0..state_clone.players.len()).map(|pi| {
+            score_round(&mut state_clone, pi);
+            state_clone.players[pi].score
+        }).collect());
+    }
+
+    if state_clone.is_round_over() {
+        state_clone.rounds += 1;
+        for i in 0..state_clone.players.len() {
+            score_round(&mut state_clone, i);
+        }
+        refill_tiles(&mut state_clone);
+    }
+
+    let next_player_idx = (player_idx + 1) % state.players.len();
+    let next_actions = list_valid_actions(&state_clone, next_player_idx);
+
+    log::debug!("Total actions at {} for {}: {:?}", current_depth, player_idx, next_actions.len());
+
+    let state_scores: Vec<(State, Vec<i32>)> = (0..next_actions.len()).map(|i| {
+        max_n_action_score(&state_clone, next_actions[i], next_player_idx, current_depth - 1)
+    }).collect();
+
+    state_scores.into_iter().max_by_key(|(_state, scores)| scores[next_player_idx]).unwrap()
+}
+
+// Play using a minimax variant for multiple players. Depth is the depth of plies and not rounds.
+pub fn play_max_n(state: &mut State, player_idx: usize) {
+    // This is not very efficient since we don't maintain any state across plies
+    let depth = 2;
+    let actions = list_valid_actions(state, player_idx);
+    let scores: Vec<Vec<i32>> = (0..actions.len()).map(|i| {
+        max_n_action_score(state, actions[i], player_idx, depth).1
+    }).collect();
+
+    // TODO: alpha-beta pruning and pre-sorting
+
+    let best_action_idx = scores.iter().enumerate().max_by_key(|(_i, ps)| ps[player_idx]).unwrap().0;
+    take_action(state, player_idx, actions[best_action_idx])
 }
 
 fn rewards_dist(rewards: Vec<i32>) -> Vec<usize> {
