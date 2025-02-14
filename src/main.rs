@@ -120,7 +120,7 @@ fn main() {
                 play_log.lock().unwrap().push(PlayLogPly {
                     game_id: game_idx,
                     player_id: current_player as i32,
-                    action: "NA".to_string(),
+                    action: serde_json::to_string(&action).unwrap(),
                     state: serde_json::to_string(&state).unwrap(),
                     score: state_clone.players[current_player].score,
                 });
