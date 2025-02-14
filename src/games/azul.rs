@@ -571,7 +571,7 @@ pub fn winner(state: &State) -> usize {
 
 // Apply action to the state for the given player. Assume that the action is
 // valid and won't cause any issue. The action generator has to ensure this.
-fn take_action(state: &mut State, player_idx: usize, action: Action) {
+pub fn take_action(state: &mut State, player_idx: usize, action: Action) {
     let tiles = take_out_tiles(state, action.action_display_choice, action.color_choice);
 
     // In case the action involves picking from center, take the starting marker
@@ -605,19 +605,16 @@ fn calculate_reward(state: &State, player_idx: usize, action: Action) -> i32 {
 }
 
 // Choose a random action from the list of valid actions available to the
-// player.
-pub fn play_random(state: &mut State, player_idx: usize) {
+// player
+pub fn play_random(state: &mut State, player_idx: usize) -> Action {
     let mut rng = rand::rng();
-    let action = list_valid_actions(state, player_idx).choose(&mut rng).unwrap().clone();
-    take_action(state, player_idx, action);
+    list_valid_actions(state, player_idx).choose(&mut rng).unwrap().clone()
 }
 
 // See all possible actions and choose the one that has highest immediate reward
-// for the player.
-pub fn play_greedy(state: &mut State, player_idx: usize) {
-    let action = list_valid_actions(state, player_idx).into_iter().max_by_key(|a| calculate_reward(state, player_idx, a.clone())).unwrap().clone();
-    log::debug!("Action: {:?}", action);
-    take_action(state, player_idx, action);
+// for the player
+pub fn play_greedy(state: &mut State, player_idx: usize) -> Action {
+    list_valid_actions(state, player_idx).into_iter().max_by_key(|a| calculate_reward(state, player_idx, a.clone())).unwrap().clone()
 }
 
 fn max_n_action_score(state: &State, action: Action, player_idx: usize, current_depth: usize) -> (State, Vec<i32>) {
@@ -652,8 +649,9 @@ fn max_n_action_score(state: &State, action: Action, player_idx: usize, current_
     state_scores.into_iter().max_by_key(|(_state, scores)| scores[next_player_idx]).unwrap()
 }
 
-// Play using a minimax variant for multiple players. Depth is the depth of plies and not rounds.
-pub fn play_max_n(state: &mut State, player_idx: usize) {
+// Play using a minimax variant for multiple players. Depth is the depth of
+// plies and not rounds.
+pub fn play_max_n(state: &mut State, player_idx: usize) -> Action {
     // This is not very efficient since we don't maintain any state across plies
     let depth = 2;
     let actions = list_valid_actions(state, player_idx);
@@ -664,7 +662,7 @@ pub fn play_max_n(state: &mut State, player_idx: usize) {
     // TODO: alpha-beta pruning and pre-sorting
 
     let best_action_idx = scores.iter().enumerate().max_by_key(|(_i, ps)| ps[player_idx]).unwrap().0;
-    take_action(state, player_idx, actions[best_action_idx])
+    actions[best_action_idx]
 }
 
 fn rewards_dist(rewards: Vec<i32>) -> Vec<usize> {
@@ -697,7 +695,7 @@ fn mcts_ply(state: &State, player_idx: usize) -> Action {
 }
 
 // Run MCTS guided by immediate scores
-pub fn play_mcts(state: &mut State, player_idx: usize) {
+pub fn play_mcts(state: &mut State, player_idx: usize) -> Action {
     let n_games = 200;
     let mut rng = rand::rng();
 
@@ -727,8 +725,6 @@ pub fn play_mcts(state: &mut State, player_idx: usize) {
         take_action(&mut future_state, player_idx, actions[action_idx]);
         let mut next_player_idx = player_idx;
 
-        log::debug!("Scores after first move: {:?}", future_state.players.iter().map(|p| p.score).collect::<Vec<_>>());
-
         // Now we keep rolling till the game is complete. This implementation
         // doesn't do caching so it will not be super efficient nor effective.
         // Every player does a weighted sampling over possible next action
@@ -752,8 +748,6 @@ pub fn play_mcts(state: &mut State, player_idx: usize) {
             let next_action = mcts_ply(&future_state, next_player_idx);
             take_action(&mut future_state, next_player_idx, next_action);
         }
-
-        log::debug!("Scores after game end: {:?}", future_state.players.iter().map(|p| p.score).collect::<Vec<_>>());
 
         // One MC game is over, update the log
         let mut scores = action_log[action_idx].0.clone();
@@ -781,5 +775,5 @@ pub fn play_mcts(state: &mut State, player_idx: usize) {
 
     log::debug!("Picked {:?}", action_log[best_action_idx]);
 
-    take_action(state, player_idx, actions[best_action_idx]);
+    actions[best_action_idx]
 }

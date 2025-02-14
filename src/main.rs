@@ -112,7 +112,8 @@ fn main() {
                     state.rounds += 1;
                     break;
                 }
-                players[current_player](&mut state, current_player);
+                let action = players[current_player](&mut state, current_player);
+                azul::take_action(&mut state, current_player, action);
 
                 let mut state_clone = state.clone();
                 azul::score_round(&mut state_clone, current_player);
