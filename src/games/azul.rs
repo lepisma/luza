@@ -777,3 +777,13 @@ pub fn play_mcts(state: &mut State, player_idx: usize) -> Action {
 
     actions[best_action_idx]
 }
+
+// Partial function that always plays, returning the greedy move
+pub fn play_partial_greedy(state: &mut State, player_idx: usize) -> Option<Action> {
+    Some(play_greedy(state, player_idx))
+}
+
+// Partial function that always plays, returning a random move
+pub fn play_partial_random(state: &mut State, player_idx: usize) -> Option<Action> {
+    Some(play_random(state, player_idx))
+}
