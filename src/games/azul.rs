@@ -606,14 +606,14 @@ fn calculate_reward(state: &State, player_idx: usize, action: Action) -> i32 {
 
 // Choose a random action from the list of valid actions available to the
 // player
-pub fn play_random(state: &mut State, player_idx: usize) -> Action {
+pub fn play_random(state: &State, player_idx: usize) -> Action {
     let mut rng = rand::rng();
     list_valid_actions(state, player_idx).choose(&mut rng).unwrap().clone()
 }
 
 // See all possible actions and choose the one that has highest immediate reward
 // for the player
-pub fn play_greedy(state: &mut State, player_idx: usize) -> Action {
+pub fn play_greedy(state: &State, player_idx: usize) -> Action {
     list_valid_actions(state, player_idx).into_iter().max_by_key(|a| calculate_reward(state, player_idx, a.clone())).unwrap().clone()
 }
 
@@ -651,7 +651,7 @@ fn max_n_action_score(state: &State, action: Action, player_idx: usize, current_
 
 // Play using a minimax variant for multiple players. Depth is the depth of
 // plies and not rounds.
-pub fn play_max_n(state: &mut State, player_idx: usize) -> Action {
+pub fn play_max_n(state: &State, player_idx: usize) -> Action {
     // This is not very efficient since we don't maintain any state across plies
     let depth = 2;
     let actions = list_valid_actions(state, player_idx);
@@ -695,7 +695,7 @@ fn mcts_ply(state: &State, player_idx: usize) -> Action {
 }
 
 // Run MCTS guided by immediate scores
-pub fn play_mcts(state: &mut State, player_idx: usize) -> Action {
+pub fn play_mcts(state: &State, player_idx: usize) -> Action {
     let n_games = 200;
     let mut rng = rand::rng();
 
@@ -779,11 +779,11 @@ pub fn play_mcts(state: &mut State, player_idx: usize) -> Action {
 }
 
 // Partial function that always plays, returning the greedy move
-pub fn play_partial_greedy(state: &mut State, player_idx: usize) -> Option<Action> {
+pub fn play_partial_greedy(state: &State, player_idx: usize) -> Option<Action> {
     Some(play_greedy(state, player_idx))
 }
 
 // Partial function that always plays, returning a random move
-pub fn play_partial_random(state: &mut State, player_idx: usize) -> Option<Action> {
+pub fn play_partial_random(state: &State, player_idx: usize) -> Option<Action> {
     Some(play_random(state, player_idx))
 }
