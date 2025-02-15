@@ -106,6 +106,7 @@ fn main() {
         }
 
         let mut ply_id: i32 = 0;
+        let mut round_id: i32 = 0;
         loop {
             log::debug!("Round: {}", state.rounds);
             let mut current_player = match azul::first_player(&state) {
@@ -131,7 +132,6 @@ fn main() {
                 matching_partials: Vec::new(),
             });
 
-            let mut round_id: i32 = 0;
             loop {
                 // If tiles are over, round stops
                 if state.is_round_over() {
