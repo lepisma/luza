@@ -21,11 +21,18 @@ struct Args {
 #[derive(Debug, Clone, serde::Serialize)]
 struct PlayLogPly {
     game_id: usize,
+    round_id: i32,
+    ply_id: i32,
     player_id: i32,
     action: String,
     state: String,
-    score: i32
+    score: i32,
+    applicable_partials: Vec<String>,
+    matching_partials: Vec<String>
 }
+
+type PlayFn = fn(&azul::State, usize) -> azul::Action;
+type PartialPlayFn = fn(&azul::State, usize) -> Option<azul::Action>;
 
 type PlayLog = Vec<PlayLogPly>;
 
@@ -60,11 +67,19 @@ fn main() {
     // Number of simulations to run for reporting
     let n_games: usize = 100;
 
-    let players = [
+    let players: Vec<PlayFn> = [
         azul::play_greedy,
         azul::play_mcts,
-    ];
+    ].to_vec();
     let n_players = players.len();
+    // MCTS has been consistently doing better than greedy in our trials
+    let best_player_idx = 1;
+
+    // Partial functions that need to be put against the best player
+    let partials: Vec<(String, PartialPlayFn)> = [
+        ("greedy".to_string(), azul::play_partial_greedy as PartialPlayFn),
+        ("random".to_string(), azul::play_partial_random as PartialPlayFn),
+    ].to_vec();
 
     log::info!("Running {} simulations for {} players,", n_games, n_players);
 
@@ -75,10 +90,14 @@ fn main() {
 
         play_log.lock().unwrap().push(PlayLogPly {
             game_id: game_idx,
+            round_id: -1,
+            ply_id: -1,
             player_id: -1,
             action: "init".to_string(),
             state: serde_json::to_string(&state).unwrap(),
             score: 0,
+            applicable_partials: Vec::new(),
+            matching_partials: Vec::new(),
         });
 
         if let Err(err) = state.validate() {
@@ -86,6 +105,7 @@ fn main() {
             return usize::MAX;
         }
 
+        let mut ply_id: i32 = 0;
         loop {
             log::debug!("Round: {}", state.rounds);
             let mut current_player = match azul::first_player(&state) {
@@ -101,11 +121,17 @@ fn main() {
             azul::refill_tiles(&mut state);
             play_log.lock().unwrap().push(PlayLogPly {
                 game_id: game_idx,
+                round_id: -1,
+                ply_id: -1,
                 player_id: -1,
                 action: "reset-round".to_string(),
                 state: serde_json::to_string(&state).unwrap(),
                 score: 0,
+                applicable_partials: Vec::new(),
+                matching_partials: Vec::new(),
             });
+
+            let mut round_id: i32 = 0;
             loop {
                 // If tiles are over, round stops
                 if state.is_round_over() {
@@ -113,26 +139,47 @@ fn main() {
                     break;
                 }
                 let action = players[current_player](&state, current_player);
+
+                // Partial fn matching
+                let mut applicable_partials: Vec<String> = Vec::new();
+                let mut matching_partials: Vec<String> = Vec::new();
+                if current_player == best_player_idx {
+                    for (p_name, p_fn) in partials.clone() {
+                        if let Some(p_action) = p_fn(&state, current_player) {
+                            applicable_partials.push(p_name.clone());
+                            if p_action == action {
+                                matching_partials.push(p_name);
+                            }
+                        }
+                    }
+                }
                 azul::take_action(&mut state, current_player, action);
 
                 let mut state_clone = state.clone();
                 azul::score_round(&mut state_clone, current_player);
+
                 play_log.lock().unwrap().push(PlayLogPly {
                     game_id: game_idx,
+                    round_id,
+                    ply_id,
                     player_id: current_player as i32,
                     action: serde_json::to_string(&action).unwrap(),
                     state: serde_json::to_string(&state).unwrap(),
                     score: state_clone.players[current_player].score,
+                    applicable_partials,
+                    matching_partials,
                 });
 
                 current_player += 1;
                 current_player %= n_players;
+                ply_id += 1;
             }
 
             for i in 0..n_players {
                 azul::score_round(&mut state, i);
                 log::debug!("Score P{}: {}", i, state.players[i].score);
             }
+            round_id += 1;
 
             if state.is_game_over() {
                 break;
