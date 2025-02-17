@@ -6,14 +6,27 @@ use rayon::iter::ParallelIterator;
 
 use games::{azul, Validate, GameState};
 use rayon::iter::IntoParallelIterator;
-use clap::Parser;
+use clap::{Parser, Subcommand};
 
 mod games;
 
-#[derive(Parser, Debug)]
+#[derive(Parser)]
 #[command(version, about, long_about = None)]
 struct Args {
-    games_log: PathBuf
+    #[command(subcommand)]
+    commands: Commands,
+}
+
+#[derive(Subcommand)]
+enum Commands {
+    Simulate {
+        #[arg(short)]
+        log_file: PathBuf,
+        game: String,
+    },
+    Copilot {
+        game: String,
+    },
 }
 
 // One ply in the game log, the string representations here are serialized data
@@ -36,7 +49,7 @@ type PartialPlayFn = fn(&azul::State, usize) -> Option<azul::Action>;
 
 type PlayLog = Vec<PlayLogPly>;
 
-fn write_play_log(play_log: &PlayLog, file: PathBuf) {
+fn write_play_log(play_log: &PlayLog, file: &PathBuf) {
     let file = File::create(file).unwrap();
     let mut writer = BufWriter::new(file);
     for item in play_log {
@@ -60,13 +73,7 @@ fn report(game_log: Vec<usize>, n_players: usize) {
     }
 }
 
-fn main() {
-    env_logger::init();
-    let args = Args::parse();
-
-    // Number of simulations to run for reporting
-    let n_games: usize = 100;
-
+fn simulate(_game: &str, log_file: &PathBuf, n_sims: usize) {
     let players: Vec<PlayFn> = [
         azul::play_greedy,
         azul::play_mcts,
@@ -81,11 +88,11 @@ fn main() {
         ("random".to_string(), azul::play_partial_random as PartialPlayFn),
     ].to_vec();
 
-    log::info!("Running {} simulations for {} players,", n_games, n_players);
+    log::info!("Running {} simulations for {} players,", n_sims, n_players);
 
     let play_log: Arc<Mutex<PlayLog>> = Arc::new(Mutex::new(Vec::new()));
 
-    let game_log: Vec<usize> = (0..n_games).into_par_iter().map(|game_idx| {
+    let game_log: Vec<usize> = (0..n_sims).into_par_iter().map(|game_idx| {
         let mut state = azul::State::new(n_players);
 
         play_log.lock().unwrap().push(PlayLogPly {
@@ -195,5 +202,19 @@ fn main() {
     }).collect();
 
     report(game_log, n_players);
-    write_play_log(&play_log.lock().unwrap().to_vec(), args.games_log);
+    write_play_log(&play_log.lock().unwrap().to_vec(), log_file);
+}
+
+fn copilot(game: &str) {
+    log::error!("Not Implemented for {game}");
+}
+
+fn main() {
+    env_logger::init();
+    let args = Args::parse();
+
+    match args.commands {
+        Commands::Simulate { log_file, game } => simulate(&game, &log_file, 10),
+        Commands::Copilot { game } => copilot(&game),
+    }
 }
