@@ -24,7 +24,7 @@ enum Commands {
         log_file: PathBuf,
         game: String,
     },
-    Copilot {
+    IIL {
         game: String,
     },
 }
@@ -205,7 +205,7 @@ fn simulate(_game: &str, log_file: &PathBuf, n_sims: usize) {
     write_play_log(&play_log.lock().unwrap().to_vec(), log_file);
 }
 
-fn copilot(game: &str) {
+fn iil(game: &str) {
     log::error!("Not Implemented for {game}");
 }
 
@@ -215,6 +215,6 @@ fn main() {
 
     match args.commands {
         Commands::Simulate { log_file, game } => simulate(&game, &log_file, 10),
-        Commands::Copilot { game } => copilot(&game),
+        Commands::IIL { game } => iil(&game),
     }
 }
