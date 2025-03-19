@@ -4,13 +4,13 @@ use anyhow::{anyhow, Result};
 use rand::{distr::{weighted::WeightedIndex, Distribution}, seq::IndexedRandom, seq::IteratorRandom, Rng};
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, serde::Serialize)]
-enum Tile {
+pub enum Tile {
     Black, Blue, Red, White, Yellow,
 }
 
 const COLORS: [Tile; 5] = [Tile::Black, Tile::Blue, Tile::Red, Tile::White, Tile::Yellow];
 const FLOOR_PENALTIES: [usize; 7] = [1, 1, 2, 2, 2, 3, 3];
-const WALL_COLORS: [[Tile; 5]; 5] = [
+pub const WALL_COLORS: [[Tile; 5]; 5] = [
     [Tile::Blue, Tile::Yellow, Tile::Red, Tile::Black, Tile::White],
     [Tile::White, Tile::Blue, Tile::Yellow, Tile::Red, Tile::Black],
     [Tile::Black, Tile::White, Tile::Blue, Tile::Yellow, Tile::Red],
@@ -18,10 +18,10 @@ const WALL_COLORS: [[Tile; 5]; 5] = [
     [Tile::Yellow, Tile::Red, Tile::Black, Tile::White, Tile::Blue],
 ];
 
-type FactoryDisplayState = HashMap<Tile, usize>;
+pub type FactoryDisplayState = HashMap<Tile, usize>;
 
 #[derive(Debug, Clone, serde::Serialize)]
-struct CenterState {
+pub struct CenterState {
     tiles: HashMap<Tile, usize>,
     starting_marker: bool,
 }
@@ -29,9 +29,9 @@ struct CenterState {
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct PlayerState {
     pub score: i32,
-    wall: [[bool; 5]; 5],
-    pattern_lines: [(Option<Tile>, usize); 5],
-    floor_line: usize,
+    pub wall: [[bool; 5]; 5],
+    pub pattern_lines: [(Option<Tile>, usize); 5],
+    pub floor_line: usize,
     pub starting_marker: bool,
 }
 
