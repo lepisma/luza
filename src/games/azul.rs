@@ -250,7 +250,7 @@ impl GameState for State {
         self.center.has_no_tiles() && self.factory_displays
             .iter()
             .map(|d| has_no_tiles(d.clone()))
-            .any(|x| x)
+            .all(|x| x)
     }
 
     fn is_game_over(&self) -> bool {
