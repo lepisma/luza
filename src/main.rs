@@ -8,6 +8,7 @@ use log::debug;
 use ratatui::layout::{Constraint, Direction, Layout};
 use ratatui::style::{self, Style};
 use ratatui::text::Span;
+use ratatui::widgets::Borders;
 use rayon::iter::ParallelIterator;
 
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind};
@@ -251,10 +252,8 @@ struct IILApp {
 impl Widget for azul::CenterState {
     fn render(self, area: Rect, buf: &mut Buffer) {
         let mut lines = Vec::new();
-        lines.push(Line::from(""));
 
-        let mut center_line = vec!["  Center:".into()];
-
+        let mut center_line = vec![" Center:".into()];
         if self.starting_marker {
             center_line.push(Span::styled(" 1", Style::default().fg(style::Color::Blue)));
         }
@@ -353,7 +352,7 @@ impl Widget for IILApp {
             .direction(Direction::Vertical)
             .constraints([
                 Constraint::Length(3),
-                Constraint::Length(8),
+                Constraint::Length(7),
                 Constraint::Length(12),
                 Constraint::Length(6),
             ])
@@ -375,9 +374,49 @@ impl Widget for IILApp {
             .block(block)
             .render(layout[0], buf);
 
-        self.state.center.render(layout[1], buf);
-        let block = Block::bordered().title(Line::from(" Displays ".bold()).centered());
-        block.render(layout[1], buf);
+        let display_layout = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints(vec![Constraint::Length(4), Constraint::Length(3)])
+            .split(layout[1]);
+
+        let factory_layout = Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints(vec![Constraint::Length(9); self.state.factory_displays.len()])
+            .split(display_layout[0]);
+
+        for (i, fd) in self.state.factory_displays.iter().enumerate() {
+            let mut lines = Vec::new();
+            lines.push(Line::from(""));
+
+            let n_tiles: usize = fd.values().sum();
+            let mut tile_spans: Vec<Span> = Vec::with_capacity(4);
+
+            for (&tile, &count) in fd.iter() {
+                for _ in 0..count {
+                    tile_spans.push(Span::styled("⬛ ", Style::default().fg(tile_to_color(tile))));
+                }
+            }
+
+            for _ in 0..(4 - n_tiles) {
+                tile_spans.push(Span::styled("⬜ ", Style::default().fg(style::Color::Gray)));
+            }
+
+            lines.push(Line::from(vec![
+                "  ".into(),
+                tile_spans[0].clone(),
+                tile_spans[1].clone(),
+            ]));
+            lines.push(Line::from(vec![
+                "  ".into(),
+                tile_spans[2].clone(),
+                tile_spans[3].clone(),
+            ]));
+            Text::from(lines).render(factory_layout[i], buf);
+
+            Block::bordered().render(factory_layout[i], buf);
+        }
+
+        self.state.center.render(display_layout[1], buf);
 
         let players_layout = Layout::default()
             .direction(Direction::Horizontal)
@@ -396,7 +435,7 @@ impl Widget for IILApp {
             .title(Line::from(" Actions ".bold()).centered())
             .title_bottom(Line::from(vec![
                 " Quit ".into(),
-                "<Q> ".blue().bold(),
+                "<qq> ".blue().bold(),
             ]).right_aligned());
 
         Paragraph::new(Text::from(""))
@@ -456,7 +495,7 @@ fn iil_run(mut terminal: DefaultTerminal) -> color_eyre::Result<()> {
                         _ => {}
                     }
                 },
-                _ => { break; }
+                _ => {}
             };
         }
         for i in 0..n_players {
