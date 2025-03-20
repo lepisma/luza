@@ -3,7 +3,7 @@ use std::io::BufWriter;
 use std::{collections::HashMap, path::PathBuf};
 use std::sync::{Arc, Mutex};
 use color_eyre::owo_colors::OwoColorize;
-use games::azul::{play_random, take_action, Tile, WALL_COLORS};
+use games::azul::{play_greedy, play_mcts, play_random, take_action, Tile, WALL_COLORS};
 use log::debug;
 use ratatui::layout::{Constraint, Direction, Layout};
 use ratatui::style::{self, Style};
@@ -484,7 +484,7 @@ fn iil_run(mut terminal: DefaultTerminal) -> color_eyre::Result<()> {
                     match key_event.code {
                         KeyCode::Char('q') => break,
                         KeyCode::Enter => {
-                            let action = play_random(&app.state, app.current_player);
+                            let action = play_greedy(&app.state, app.current_player);
                             take_action(&mut app.state, app.current_player, action);
 
                             app.current_player += 1;
