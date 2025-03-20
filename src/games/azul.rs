@@ -22,8 +22,8 @@ pub type FactoryDisplayState = HashMap<Tile, usize>;
 
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct CenterState {
-    tiles: HashMap<Tile, usize>,
-    starting_marker: bool,
+    pub tiles: HashMap<Tile, usize>,
+    pub starting_marker: bool,
 }
 
 #[derive(Clone, Debug, serde::Serialize)]
@@ -37,8 +37,8 @@ pub struct PlayerState {
 
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct State {
-    factory_displays: Vec<FactoryDisplayState>,
-    center: CenterState,
+    pub factory_displays: Vec<FactoryDisplayState>,
+    pub center: CenterState,
     pub players: Vec<PlayerState>,
     pub rounds: usize,
 }

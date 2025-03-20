@@ -233,13 +233,10 @@ fn iil(_game: &str) {
     let features: Vec<FeatureFn> = Vec::new();
     let setup_states: Vec<SetupStateFn> = Vec::new();
     let action_heuristics: Vec<PartialPlayFn> = Vec::new();
-    let n_players = 3;
-
-    let mut state = azul::State::new(n_players);
 
     color_eyre::install().unwrap();
     let terminal = ratatui::init();
-    let _result = iil_run(terminal, &mut state);
+    let _result = iil_run(terminal);
     ratatui::restore();
 }
 
@@ -253,6 +250,28 @@ struct IILApp {
 
 impl Widget for azul::CenterState {
     fn render(self, area: Rect, buf: &mut Buffer) {
+        let mut lines = Vec::new();
+        lines.push(Line::from(""));
+
+        let mut center_line = vec!["  Center:".into()];
+
+        if self.starting_marker {
+            center_line.push(Span::styled(" 1", Style::default().fg(style::Color::Blue)));
+        }
+
+        if self.tiles.is_empty() {
+            center_line.push(Span::styled(" ⬜", Style::default().fg(style::Color::Gray)));
+        } else {
+            for (&tile, &count) in self.tiles.iter() {
+                for _ in 0..count {
+                    center_line.push(Span::styled(" ⬛", Style::default().fg(tile_to_color(tile))));
+                }
+            }
+        }
+
+        lines.push(Line::from(center_line));
+
+        Text::from(lines).render(area, buf);
     }
 }
 
@@ -341,13 +360,8 @@ impl Widget for IILApp {
             .split(area);
 
         let title = Line::from(" Game Info ".bold());
-        let instructions = Line::from(vec![
-            " Quit ".into(),
-            "<Q> ".blue().bold(),
-        ]);
         let block = Block::bordered()
             .title(title.centered())
-            // .title_bottom(instructions.centered())
             .border_set(border::THICK);
 
         let header_text = Text::from(vec![Line::from(vec![
@@ -361,16 +375,13 @@ impl Widget for IILApp {
             .block(block)
             .render(layout[0], buf);
 
-        let block = Block::bordered()
-            .title(Line::from(" Displays ".bold()).centered());
-
-        Paragraph::new(Text::from(""))
-            .block(block)
-            .render(layout[1], buf);
+        self.state.center.render(layout[1], buf);
+        let block = Block::bordered().title(Line::from(" Displays ".bold()).centered());
+        block.render(layout[1], buf);
 
         let players_layout = Layout::default()
             .direction(Direction::Horizontal)
-            .constraints(vec![Constraint::Percentage(100 / self.state.players.len() as u16); self.state.players.len()])
+            .constraints(vec![Constraint::Min(24); self.state.players.len()])
             .split(layout[2]);
 
         for i in 0..self.state.players.len() {
@@ -382,7 +393,11 @@ impl Widget for IILApp {
         }
 
         let block = Block::bordered()
-            .title(Line::from(" Actions ".bold()).centered());
+            .title(Line::from(" Actions ".bold()).centered())
+            .title_bottom(Line::from(vec![
+                " Quit ".into(),
+                "<Q> ".blue().bold(),
+            ]).right_aligned());
 
         Paragraph::new(Text::from(""))
             .block(block)
@@ -390,15 +405,16 @@ impl Widget for IILApp {
     }
 }
 
-fn iil_run(mut terminal: DefaultTerminal, state: &mut azul::State) -> color_eyre::Result<()> {
+fn iil_run(mut terminal: DefaultTerminal) -> color_eyre::Result<()> {
+    let n_players = 3;
+
     let mut app = IILApp{
-        state: state.clone(),
+        state: azul::State::new(n_players),
         current_player: 0,
         ply: 0,
         ply_round: 0
     };
 
-    azul::refill_tiles(&mut app.state);
     loop {
         app.current_player = match azul::first_player(&app.state) {
             Some(one) => {
@@ -408,16 +424,22 @@ fn iil_run(mut terminal: DefaultTerminal, state: &mut azul::State) -> color_eyre
             None => 0,
         };
 
+        azul::refill_tiles(&mut app.state);
+        terminal.draw(|frame| {
+            frame.render_widget(app.clone(), frame.area());
+        })?;
+
         loop {
+            terminal.draw(|frame| {
+                frame.render_widget(app.clone(), frame.area());
+            })?;
+
             if app.state.is_round_over() {
                 app.state.rounds += 1;
                 app.ply_round = 0;
                 break;
             }
 
-            terminal.draw(|frame| {
-                frame.render_widget(app.clone(), frame.area());
-            })?;
             match event::read()? {
                 Event::Key(key_event) => {
                     match key_event.code {
@@ -427,7 +449,7 @@ fn iil_run(mut terminal: DefaultTerminal, state: &mut azul::State) -> color_eyre
                             take_action(&mut app.state, app.current_player, action);
 
                             app.current_player += 1;
-                            app.current_player %= app.state.players.len();
+                            app.current_player %= n_players;
                             app.ply += 1;
                             app.ply_round += 1;
                         },
@@ -437,8 +459,12 @@ fn iil_run(mut terminal: DefaultTerminal, state: &mut azul::State) -> color_eyre
                 _ => { break; }
             };
         }
-        for i in 0..app.state.players.len() {
+        for i in 0..n_players {
             azul::score_round(&mut app.state, i);
+        }
+
+        if app.state.is_game_over() {
+            break Ok(())
         }
 
         match event::read()? {
