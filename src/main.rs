@@ -247,6 +247,7 @@ struct IILApp {
     current_player: usize,
     ply: usize,
     ply_round: usize,
+    top_actions: Vec<azul::Action>,
 }
 
 impl Widget for azul::CenterState {
@@ -353,7 +354,7 @@ impl Widget for IILApp {
                 Constraint::Length(3),
                 Constraint::Length(7),
                 Constraint::Length(12),
-                Constraint::Length(6),
+                Constraint::Length(10),
             ])
             .split(area);
 
@@ -440,7 +441,14 @@ impl Widget for IILApp {
                 "<qq> ".blue().bold(),
             ]).right_aligned());
 
-        Paragraph::new(Text::from(""))
+        let mut lines = Vec::new();
+        lines.push(Line::from(""));
+
+        for action in self.top_actions {
+            lines.push(Line::from(format!(" {:?}", action)));
+        }
+
+        Paragraph::new(Text::from(lines))
             .block(block)
             .render(layout[3], buf);
     }
@@ -453,7 +461,8 @@ fn iil_run(mut terminal: DefaultTerminal) -> color_eyre::Result<()> {
         state: azul::State::new(n_players),
         current_player: 0,
         ply: 0,
-        ply_round: 0
+        ply_round: 0,
+        top_actions: Vec::new(),
     };
 
     loop {
@@ -481,12 +490,20 @@ fn iil_run(mut terminal: DefaultTerminal) -> color_eyre::Result<()> {
                 break;
             }
 
+            app.top_actions = azul::list_valid_actions(&app.state, app.current_player);
+            app.top_actions.sort_by_key(|a| -azul::calculate_reward(&app.state, app.current_player, a.clone()));
+            app.top_actions = app.top_actions.into_iter().take(5).collect();
+
+            terminal.draw(|frame| {
+                frame.render_widget(app.clone(), frame.area());
+            })?;
+
             match event::read()? {
                 Event::Key(key_event) => {
                     match key_event.code {
                         KeyCode::Char('q') => break,
                         KeyCode::Enter => {
-                            let action = play_greedy(&app.state, app.current_player);
+                            let action = app.top_actions[0];
                             take_action(&mut app.state, app.current_player, action);
 
                             app.current_player += 1;

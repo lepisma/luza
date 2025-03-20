@@ -588,7 +588,7 @@ pub fn take_action(state: &mut State, player_idx: usize, action: Action) {
 
 // Return reward of taking action for given player with given game state. The
 // current score is calculated so you don't have to worry about ply count etc.
-fn calculate_reward(state: &State, player_idx: usize, action: Action) -> i32 {
+pub fn calculate_reward(state: &State, player_idx: usize, action: Action) -> i32 {
     let mut state_clone_a = state.clone();
     let mut state_clone_b = state.clone();
 
