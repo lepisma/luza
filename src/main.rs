@@ -41,7 +41,7 @@ enum Commands {
         log_file: PathBuf,
         game: String,
     },
-    IIL {
+    Interactive {
         game: String,
     },
 }
@@ -228,7 +228,7 @@ fn simulate(_game: &str, log_file: &PathBuf, n_sims: usize) {
     write_play_log(&play_log.lock().unwrap().to_vec(), log_file);
 }
 
-fn iil(_game: &str) {
+fn interactive(_game: &str) {
     // Inverse Imitation Learning for Azul
     let teacher: PlayFn = azul::play_mcts;
     let features: Vec<FeatureFn> = Vec::new();
@@ -237,12 +237,12 @@ fn iil(_game: &str) {
 
     color_eyre::install().unwrap();
     let terminal = ratatui::init();
-    let _result = iil_run(terminal);
+    let _result = interactive_run(terminal);
     ratatui::restore();
 }
 
 #[derive(Clone)]
-struct IILApp {
+struct InteractiveApp {
     state: azul::State,
     current_player: usize,
     ply: usize,
@@ -346,7 +346,7 @@ impl Widget for azul::PlayerState {
     }
 }
 
-impl Widget for IILApp {
+impl Widget for InteractiveApp {
     fn render(self, area: ratatui::prelude::Rect, buf: &mut ratatui::prelude::Buffer) {
         let layout = Layout::default()
             .direction(Direction::Vertical)
@@ -454,10 +454,10 @@ impl Widget for IILApp {
     }
 }
 
-fn iil_run(mut terminal: DefaultTerminal) -> color_eyre::Result<()> {
+fn interactive_run(mut terminal: DefaultTerminal) -> color_eyre::Result<()> {
     let n_players = 3;
 
-    let mut app = IILApp{
+    let mut app = InteractiveApp{
         state: azul::State::new(n_players),
         current_player: 0,
         ply: 0,
@@ -543,6 +543,6 @@ fn main() {
 
     match args.commands {
         Commands::Simulate { log_file, game } => simulate(&game, &log_file, 10),
-        Commands::IIL { game } => iil(&game),
+        Commands::Interactive { game } => interactive(&game),
     }
 }
