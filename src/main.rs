@@ -329,15 +329,14 @@ impl Widget for azul::PlayerState {
         grid_lines.push(Line::from(""));
 
         let mut row = vec![Span::styled(" ", Style::default())];
+        if self.starting_marker {
+            row.push(Span::styled(" 1", Style::default().fg(style::Color::Red)));
+        }
         for i in 0..7 {
             if i < self.floor_line {
-                if self.starting_marker && i == 0 {
-                    row.push(Span::styled(" 1", Style::default().fg(style::Color::Red)));
-                } else {
-                    row.push(Span::styled(" ⬛", Style::default().fg(style::Color::Red)));
-                }
+                row.push(Span::styled(" ⬤", Style::default().fg(style::Color::Red)));
             } else {
-                row.push(Span::styled(" ⬜", Style::default().fg(style::Color::Red)));
+                row.push(Span::styled(" ⬤", Style::default().fg(style::Color::Gray)));
             }
         }
         grid_lines.push(Line::from(row));
