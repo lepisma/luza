@@ -8,7 +8,7 @@ use log::debug;
 use ratatui::layout::{Constraint, Direction, Layout};
 use ratatui::style::{self, Style};
 use ratatui::text::Span;
-use ratatui::widgets::Borders;
+use ratatui::widgets::{BorderType, Borders};
 use rayon::iter::ParallelIterator;
 
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind};
@@ -424,8 +424,11 @@ impl Widget for IILApp {
             .split(layout[2]);
 
         for i in 0..self.state.players.len() {
-            let block = Block::bordered()
-                .title(Line::from(format!(" Player {} ", i).bold()));
+            let block = Block::default()
+                .title(Line::from(format!(" Player {} ", i).bold()))
+                .border_type(if self.current_player == i { BorderType::QuadrantOutside } else { BorderType::Plain })
+                .border_style(Style::default().fg(style::Color::Blue))
+                .borders(Borders::ALL);
 
             self.state.players[i].clone().render(players_layout[i], buf);
             block.render(players_layout[i], buf);
