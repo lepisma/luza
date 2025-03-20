@@ -364,9 +364,9 @@ impl Widget for IILApp {
             .border_set(border::THICK);
 
         let header_text = Text::from(vec![Line::from(vec![
-            format!(" Number of Players: {} ", self.state.players.len()).into(),
-            format!("Current Player: {} ", self.current_player).into(),
-            format!("Round: {} ", self.state.rounds).into(),
+            format!(" Players: {}, ", self.state.players.len()).into(),
+            format!("Current Player: {}, ", self.current_player).into(),
+            format!("Round: {}, ", self.state.rounds).into(),
             format!("Ply: {}, ({} this round)", self.ply, self.ply_round).into(),
         ])]);
 
