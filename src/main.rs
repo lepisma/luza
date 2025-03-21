@@ -346,7 +346,7 @@ fn main() {
     let args = Args::parse();
 
     match args.commands {
-        Commands::Simulate { log_file, game } => simulate(&game, &log_file, 10),
+        Commands::Simulate { log_file, game } => simulate(&game, &log_file, 100),
         Commands::Interactive { game } => run_interactive(&game),
     }
 }
