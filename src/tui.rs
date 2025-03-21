@@ -211,7 +211,7 @@ impl Widget for InteractiveApp {
             .title(Line::from(" Actions ".bold()).centered())
             .title_bottom(Line::from(vec![
                 " Quit ".into(),
-                "<qq> ".blue().bold(),
+                "<q> ".blue().bold(),
             ]).right_aligned());
 
         let mut lines = Vec::new();

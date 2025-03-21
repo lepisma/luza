@@ -225,6 +225,8 @@ fn run_interactive(_game: &str) {
         top_actions: Vec::new(),
     };
 
+    let mut user_exit = false;
+
     loop {
         app.current_player = match azul::first_player(&app.state) {
             Some(one) => {
@@ -261,7 +263,7 @@ fn run_interactive(_game: &str) {
             match event::read().unwrap() {
                 Event::Key(key_event) => {
                     match key_event.code {
-                        KeyCode::Char('q') => break,
+                        KeyCode::Char('q') => { user_exit = true; break; },
                         KeyCode::Enter => {
                             let action = app.top_actions[0];
                             azul::take_action(&mut app.state, app.current_player, action);
@@ -281,7 +283,7 @@ fn run_interactive(_game: &str) {
             azul::score_round(&mut app.state, i);
         }
 
-        if app.state.is_game_over() {
+        if app.state.is_game_over() || user_exit {
             break;
         }
 
