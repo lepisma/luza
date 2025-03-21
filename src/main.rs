@@ -210,7 +210,7 @@ fn simulate(_game: &str, log_file: &PathBuf, n_sims: usize) {
 }
 
 fn run_interactive(_game: &str) {
-    let _teacher: PlayFn = azul::play_mcts;
+    let teacher: PlayFn = azul::play_mcts;
     let _action_heuristics: Vec<PartialPlayFn> = Vec::new();
 
     color_eyre::install().unwrap();
@@ -265,6 +265,15 @@ fn run_interactive(_game: &str) {
                 Event::Key(key_event) => {
                     match key_event.code {
                         KeyCode::Char('q') => { user_exit = true; break; },
+                        KeyCode::Char(' ') => {
+                            let action = teacher(&app.state, app.current_player);
+                            azul::take_action(&mut app.state, app.current_player, action);
+
+                            app.current_player += 1;
+                            app.current_player %= n_players;
+                            app.ply += 1;
+                            app.ply_round += 1;
+                        },
                         KeyCode::Enter => {
                             let action = app.top_actions[app.selected_action as usize];
                             azul::take_action(&mut app.state, app.current_player, action);

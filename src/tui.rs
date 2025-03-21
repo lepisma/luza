@@ -255,11 +255,11 @@ impl Widget for InteractiveApp {
         let block = Block::bordered()
             .title(Line::from(" Actions ".bold()).centered())
             .title_bottom(Line::from(vec![
-                " Autoplay ".into(),
-                "<a> ".blue().bold(),
+                " Teacher Play ".into(),
+                "<SPC> ".blue().bold(),
                 " Analyze Action ".into(),
-                "<d> ".blue().bold(),
-                " Next ".into(),
+                "<a> ".blue().bold(),
+                " Proceed ".into(),
                 "<RET> ".blue().bold(),
                 " Quit ".into(),
                 "<q> ".blue().bold(),
