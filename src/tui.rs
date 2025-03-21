@@ -210,6 +210,12 @@ impl Widget for InteractiveApp {
         let block = Block::bordered()
             .title(Line::from(" Actions ".bold()).centered())
             .title_bottom(Line::from(vec![
+                " Autoplay ".into(),
+                "<a> ".blue().bold(),
+                " Analyze Action q".into(),
+                "<d> ".blue().bold(),
+                " Next ".into(),
+                "<RET> ".blue().bold(),
                 " Quit ".into(),
                 "<q> ".blue().bold(),
             ]).right_aligned());
