@@ -1,11 +1,8 @@
-use std::time::TryFromFloatSecsError;
-
 use crate::games::azul::ActionDisplay;
 
 use super::azul::{self, Tile, WALL_COLORS};
-use clap::CommandFactory;
 use ratatui::layout::{Constraint, Direction, Layout};
-use ratatui::style::{self, Style};
+use ratatui::style::{self, Modifier, Style};
 use ratatui::text::Span;
 use ratatui::widgets::{BorderType, Borders};
 
@@ -26,6 +23,7 @@ pub struct InteractiveApp {
     pub ply: usize,
     pub ply_round: usize,
     pub top_actions: Vec<azul::Action>,
+    pub selected_action: i32,
 }
 
 fn tile_to_color(tile: Tile) -> style::Color {
@@ -125,7 +123,7 @@ impl Widget for azul::PlayerState {
 }
 
 // Format action for the main window selector
-fn action_span(action: &azul::Action, action_idx: usize) -> Line {
+fn action_span(action: &azul::Action, action_idx: usize, is_selected: bool) -> Line {
     let display = match action.action_display_choice {
         ActionDisplay::FactoryDisplay(i) => format!("D{}", i),
         ActionDisplay::Center => "Center".to_string()
@@ -136,15 +134,29 @@ fn action_span(action: &azul::Action, action_idx: usize) -> Line {
         None => "penalty row".to_string()
     };
 
-    Line::from(vec![
-        Span::styled(format!("  {:>2}.", action_idx), Style::default().fg(style::Color::Gray)),
-        " Take ".into(),
-        Span::styled("⬛", Style::default().fg(tile_to_color(action.color_choice))),
-        " from ".into(),
-        display.into(),
-        ", put in ".into(),
-        row.into()
-    ])
+    if is_selected {
+        let modifier = Modifier::BOLD | Modifier::UNDERLINED;
+
+        Line::from(vec![
+            Span::styled(format!("  {:>2}. ", action_idx), Style::default().fg(style::Color::Gray)),
+            Span::styled("Take ", Style::default().add_modifier(modifier)),
+            Span::styled("⬛", Style::default().fg(tile_to_color(action.color_choice)).add_modifier(modifier)),
+            Span::styled(" from ", Style::default().add_modifier(modifier)),
+            Span::styled(display, Style::default().add_modifier(modifier)),
+            Span::styled(", put in ", Style::default().add_modifier(modifier)),
+            Span::styled(row, Style::default().add_modifier(modifier))
+        ])
+    } else {
+        Line::from(vec![
+            Span::styled(format!("  {:>2}. ", action_idx), Style::default().fg(style::Color::Gray)),
+            "Take ".into(),
+            Span::styled("⬛", Style::default().fg(tile_to_color(action.color_choice))),
+            " from ".into(),
+            display.into(),
+            ", put in ".into(),
+            row.into()
+        ])
+    }
 }
 
 impl Widget for InteractiveApp {
@@ -250,7 +262,7 @@ impl Widget for InteractiveApp {
 
         let mut lines = Vec::new();
         for (idx, action) in self.top_actions.iter().enumerate() {
-            lines.push(action_span(action, idx));
+            lines.push(action_span(action, idx, idx == (self.selected_action as usize)));
         }
 
         Paragraph::new(Text::from(lines))

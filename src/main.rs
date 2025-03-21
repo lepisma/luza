@@ -223,6 +223,7 @@ fn run_interactive(_game: &str) {
         ply: 0,
         ply_round: 0,
         top_actions: Vec::new(),
+        selected_action: 0,
     };
 
     let mut user_exit = false;
@@ -265,19 +266,40 @@ fn run_interactive(_game: &str) {
                     match key_event.code {
                         KeyCode::Char('q') => { user_exit = true; break; },
                         KeyCode::Enter => {
-                            let action = app.top_actions[0];
+                            let action = app.top_actions[app.selected_action];
                             azul::take_action(&mut app.state, app.current_player, action);
+                            app.selected_action = 0;
 
                             app.current_player += 1;
                             app.current_player %= n_players;
                             app.ply += 1;
                             app.ply_round += 1;
                         },
+                        KeyCode::Down => {
+                            if app.top_actions.len() > 0 {
+                                app.selected_action += 1;
+                                app.selected_action = std::cmp::min(app.selected_action, app.top_actions.len() - 1);
+                            } else {
+                                app.selected_action = 0;
+                            }
+                        },
+                        KeyCode::Up => {
+                            if app.top_actions.len() > 0 {
+                                app.selected_action -= 1;
+                                app.selected_action = std::cmp::max(app.selected_action, 0);
+                            } else {
+                                app.selected_action = 0;
+                            }
+                        }
                         _ => {}
                     }
                 },
                 _ => {}
             };
+
+            terminal.draw(|frame| {
+                frame.render_widget(app.clone(), frame.area());
+            }).unwrap();
         }
         for i in 0..n_players {
             azul::score_round(&mut app.state, i);
@@ -285,16 +307,6 @@ fn run_interactive(_game: &str) {
 
         if app.state.is_game_over() || user_exit {
             break;
-        }
-
-        match event::read().unwrap() {
-            Event::Key(key_event) => {
-                match key_event.code {
-                    KeyCode::Char('q') => break,
-                    _ => {}
-                }
-            },
-            _ => {}
         }
     }
     ratatui::restore();
