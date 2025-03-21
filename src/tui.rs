@@ -125,7 +125,7 @@ impl Widget for azul::PlayerState {
 }
 
 // Format action for the main window selector
-fn action_span(action: &azul::Action) -> Line {
+fn action_span(action: &azul::Action, action_idx: usize) -> Line {
     let display = match action.action_display_choice {
         ActionDisplay::FactoryDisplay(i) => format!("D{}", i),
         ActionDisplay::Center => "Center".to_string()
@@ -137,7 +137,8 @@ fn action_span(action: &azul::Action) -> Line {
     };
 
     Line::from(vec![
-        "  Take ".into(),
+        Span::styled(format!("  {:>2}.", action_idx), Style::default().fg(style::Color::Gray)),
+        " Take ".into(),
         Span::styled("⬛", Style::default().fg(tile_to_color(action.color_choice))),
         " from ".into(),
         display.into(),
@@ -154,7 +155,7 @@ impl Widget for InteractiveApp {
                 Constraint::Length(3),
                 Constraint::Length(7),
                 Constraint::Length(12),
-                Constraint::Length(10),
+                Constraint::Length(22),
             ])
             .split(area);
 
@@ -239,7 +240,7 @@ impl Widget for InteractiveApp {
             .title_bottom(Line::from(vec![
                 " Autoplay ".into(),
                 "<a> ".blue().bold(),
-                " Analyze Action q".into(),
+                " Analyze Action ".into(),
                 "<d> ".blue().bold(),
                 " Next ".into(),
                 "<RET> ".blue().bold(),
@@ -248,10 +249,8 @@ impl Widget for InteractiveApp {
             ]).right_aligned());
 
         let mut lines = Vec::new();
-        lines.push(Line::from(""));
-
-        for action in &self.top_actions {
-            lines.push(action_span(action));
+        for (idx, action) in self.top_actions.iter().enumerate() {
+            lines.push(action_span(action, idx));
         }
 
         Paragraph::new(Text::from(lines))

@@ -254,7 +254,7 @@ fn run_interactive(_game: &str) {
 
             app.top_actions = azul::list_valid_actions(&app.state, app.current_player);
             app.top_actions.sort_by_key(|a| -azul::calculate_reward(&app.state, app.current_player, a.clone()));
-            app.top_actions = app.top_actions.into_iter().take(5).collect();
+            app.top_actions = app.top_actions.into_iter().take(20).collect();
 
             terminal.draw(|frame| {
                 frame.render_widget(app.clone(), frame.area());
