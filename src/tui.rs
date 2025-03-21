@@ -186,7 +186,7 @@ impl Widget for InteractiveApp {
             ]));
             Text::from(lines).render(factory_layout[i], buf);
 
-            Block::bordered().render(factory_layout[i], buf);
+            Block::bordered().title(format!(" D{} ", i)).render(factory_layout[i], buf);
         }
 
         self.state.center.render(display_layout[1], buf);
