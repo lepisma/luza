@@ -1,31 +1,18 @@
+use tui::InteractiveApp;
 use std::fs::File;
 use std::io::BufWriter;
 use std::{collections::HashMap, path::PathBuf};
 use std::sync::{Arc, Mutex};
-use color_eyre::owo_colors::OwoColorize;
-use games::azul::{play_greedy, play_mcts, play_random, take_action, Tile, WALL_COLORS};
-use log::debug;
-use ratatui::layout::{Constraint, Direction, Layout};
-use ratatui::style::{self, Style};
-use ratatui::text::Span;
-use ratatui::widgets::{BorderType, Borders};
 use rayon::iter::ParallelIterator;
 
-use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind};
-use ratatui::{
-    buffer::Buffer,
-    layout::Rect,
-    style::Stylize,
-    symbols::border,
-    text::{Line, Text},
-    widgets::{Block, Paragraph, Widget},
-    DefaultTerminal,
-};
+use crossterm::event::{self, Event, KeyCode};
+use ratatui::DefaultTerminal;
 use games::{azul, Validate, GameState};
 use rayon::iter::IntoParallelIterator;
 use clap::{Parser, Subcommand};
 
 mod games;
+mod tui;
 
 #[derive(Parser)]
 #[command(version, about, long_about = None)]
@@ -61,12 +48,6 @@ struct PlayLogPly {
     matching_partials: Vec<String>
 }
 
-trait Feature {
-    fn display(&self) -> String;
-}
-
-type FeatureFn = fn(&azul::State) -> Box<dyn Feature>;
-type SetupStateFn = fn(&azul::State) -> bool;
 type PlayFn = fn(&azul::State, usize) -> azul::Action;
 type PartialPlayFn = fn(&azul::State, usize) -> Option<azul::Action>;
 
@@ -228,233 +209,12 @@ fn simulate(_game: &str, log_file: &PathBuf, n_sims: usize) {
     write_play_log(&play_log.lock().unwrap().to_vec(), log_file);
 }
 
-fn interactive(_game: &str) {
-    // Inverse Imitation Learning for Azul
-    let teacher: PlayFn = azul::play_mcts;
-    let features: Vec<FeatureFn> = Vec::new();
-    let setup_states: Vec<SetupStateFn> = Vec::new();
-    let action_heuristics: Vec<PartialPlayFn> = Vec::new();
+fn run_interactive(_game: &str) {
+    let _teacher: PlayFn = azul::play_mcts;
+    let _action_heuristics: Vec<PartialPlayFn> = Vec::new();
 
     color_eyre::install().unwrap();
-    let terminal = ratatui::init();
-    let _result = interactive_run(terminal);
-    ratatui::restore();
-}
-
-#[derive(Clone)]
-struct InteractiveApp {
-    state: azul::State,
-    current_player: usize,
-    ply: usize,
-    ply_round: usize,
-    top_actions: Vec<azul::Action>,
-}
-
-impl Widget for azul::CenterState {
-    fn render(self, area: Rect, buf: &mut Buffer) {
-        let mut lines = Vec::new();
-
-        let mut center_line = vec![" Center:".into()];
-        if self.starting_marker {
-            center_line.push(Span::styled(" 1", Style::default().fg(style::Color::Blue)));
-        }
-
-        if self.tiles.is_empty() {
-            center_line.push(Span::styled(" ⬜", Style::default().fg(style::Color::Gray)));
-        } else {
-            for (&tile, &count) in self.tiles.iter() {
-                for _ in 0..count {
-                    center_line.push(Span::styled(" ⬛", Style::default().fg(tile_to_color(tile))));
-                }
-            }
-        }
-
-        lines.push(Line::from(center_line));
-
-        Text::from(lines).render(area, buf);
-    }
-}
-
-fn tile_to_color(tile: Tile) -> style::Color {
-    match tile {
-        Tile::Black => style::Color::Black,
-        Tile::Blue => style::Color::Blue,
-        Tile::Red => style::Color::Red,
-        Tile::White => style::Color::White,
-        Tile::Yellow => style::Color::Yellow,
-    }
-}
-
-impl Widget for azul::PlayerState {
-    fn render(self, area: Rect, buf: &mut Buffer) {
-        Paragraph::new(format!("\n  Score: {}", self.score)).render(area, buf);
-
-        let rows = 5;
-        let cols = 5;
-        let mut grid_lines = Vec::new();
-        grid_lines.push(Line::from(""));
-        grid_lines.push(Line::from(""));
-        grid_lines.push(Line::from(""));
-
-        for i in 0..rows {
-            let mut row = vec![" ".into()];
-            for j in 0..cols {
-                let text = if j < (4 - i) {
-                    Span::styled("   ", Style::default())
-                } else {
-                    match self.pattern_lines[i] {
-                        (None, _) => {
-                            Span::styled(" ⬜", Style::default().fg(style::Color::Gray))
-                        },
-                        (Some(tile), count) => {
-                            let pos = 4 - j;
-                            if pos < count {
-                                Span::styled(" ⬛", Style::default().fg(tile_to_color(tile)))
-                            } else {
-                                Span::styled(" ⬜", Style::default().fg(style::Color::Gray))
-                            }
-                        }
-                    }
-                };
-                row.push(text);
-            }
-            row.push("  ".into());
-
-            for j in 0..cols {
-                let text = if self.wall[i][j] { "⬛ " } else { "⬜ " };
-                row.push(Span::styled(text, Style::default().fg(tile_to_color(WALL_COLORS[i][j]))));
-            }
-            grid_lines.push(Line::from(row));
-        }
-
-        grid_lines.push(Line::from(""));
-
-        let mut row = vec![Span::styled(" ", Style::default())];
-        if self.starting_marker {
-            row.push(Span::styled(" 1", Style::default().fg(style::Color::Red)));
-        }
-        for i in 0..7 {
-            if i < self.floor_line {
-                row.push(Span::styled(" ⬤", Style::default().fg(style::Color::Red)));
-            } else {
-                row.push(Span::styled(" ⬤", Style::default().fg(style::Color::Gray)));
-            }
-        }
-        grid_lines.push(Line::from(row));
-
-        Text::from(grid_lines).render(area, buf);
-    }
-}
-
-impl Widget for InteractiveApp {
-    fn render(self, area: ratatui::prelude::Rect, buf: &mut ratatui::prelude::Buffer) {
-        let layout = Layout::default()
-            .direction(Direction::Vertical)
-            .constraints([
-                Constraint::Length(3),
-                Constraint::Length(7),
-                Constraint::Length(12),
-                Constraint::Length(10),
-            ])
-            .split(area);
-
-        let title = Line::from(" Game Info ".bold());
-        let block = Block::bordered()
-            .title(title.centered())
-            .border_set(border::THICK);
-
-        let header_text = Text::from(vec![Line::from(vec![
-            format!(" Players: {}, ", self.state.players.len()).into(),
-            format!("Current Player: {}, ", self.current_player).into(),
-            format!("Round: {}, ", self.state.rounds).into(),
-            format!("Ply: {}, ({} this round)", self.ply, self.ply_round).into(),
-        ])]);
-
-        Paragraph::new(header_text)
-            .block(block)
-            .render(layout[0], buf);
-
-        let display_layout = Layout::default()
-            .direction(Direction::Vertical)
-            .constraints(vec![Constraint::Length(4), Constraint::Length(3)])
-            .split(layout[1]);
-
-        let factory_layout = Layout::default()
-            .direction(Direction::Horizontal)
-            .constraints(vec![Constraint::Length(9); self.state.factory_displays.len()])
-            .split(display_layout[0]);
-
-        for (i, fd) in self.state.factory_displays.iter().enumerate() {
-            let mut lines = Vec::new();
-            lines.push(Line::from(""));
-
-            let n_tiles: usize = fd.values().sum();
-            let mut tile_spans: Vec<Span> = Vec::with_capacity(4);
-
-            for (&tile, &count) in fd.iter() {
-                for _ in 0..count {
-                    tile_spans.push(Span::styled("⬛ ", Style::default().fg(tile_to_color(tile))));
-                }
-            }
-
-            for _ in 0..(4 - n_tiles) {
-                tile_spans.push(Span::styled("⬜ ", Style::default().fg(style::Color::Gray)));
-            }
-
-            lines.push(Line::from(vec![
-                "  ".into(),
-                tile_spans[0].clone(),
-                tile_spans[1].clone(),
-            ]));
-            lines.push(Line::from(vec![
-                "  ".into(),
-                tile_spans[2].clone(),
-                tile_spans[3].clone(),
-            ]));
-            Text::from(lines).render(factory_layout[i], buf);
-
-            Block::bordered().render(factory_layout[i], buf);
-        }
-
-        self.state.center.render(display_layout[1], buf);
-
-        let players_layout = Layout::default()
-            .direction(Direction::Horizontal)
-            .constraints(vec![Constraint::Min(24); self.state.players.len()])
-            .split(layout[2]);
-
-        for i in 0..self.state.players.len() {
-            let block = Block::default()
-                .title(Line::from(format!(" Player {} ", i).bold()))
-                .border_type(if self.current_player == i { BorderType::QuadrantOutside } else { BorderType::Plain })
-                .border_style(Style::default().fg(style::Color::Blue))
-                .borders(Borders::ALL);
-
-            self.state.players[i].clone().render(players_layout[i], buf);
-            block.render(players_layout[i], buf);
-        }
-
-        let block = Block::bordered()
-            .title(Line::from(" Actions ".bold()).centered())
-            .title_bottom(Line::from(vec![
-                " Quit ".into(),
-                "<qq> ".blue().bold(),
-            ]).right_aligned());
-
-        let mut lines = Vec::new();
-        lines.push(Line::from(""));
-
-        for action in self.top_actions {
-            lines.push(Line::from(format!(" {:?}", action)));
-        }
-
-        Paragraph::new(Text::from(lines))
-            .block(block)
-            .render(layout[3], buf);
-    }
-}
-
-fn interactive_run(mut terminal: DefaultTerminal) -> color_eyre::Result<()> {
+    let mut terminal = ratatui::init();
     let n_players = 3;
 
     let mut app = InteractiveApp{
@@ -477,12 +237,12 @@ fn interactive_run(mut terminal: DefaultTerminal) -> color_eyre::Result<()> {
         azul::refill_tiles(&mut app.state);
         terminal.draw(|frame| {
             frame.render_widget(app.clone(), frame.area());
-        })?;
+        }).unwrap();
 
         loop {
             terminal.draw(|frame| {
                 frame.render_widget(app.clone(), frame.area());
-            })?;
+            }).unwrap();
 
             if app.state.is_round_over() {
                 app.state.rounds += 1;
@@ -496,15 +256,15 @@ fn interactive_run(mut terminal: DefaultTerminal) -> color_eyre::Result<()> {
 
             terminal.draw(|frame| {
                 frame.render_widget(app.clone(), frame.area());
-            })?;
+            }).unwrap();
 
-            match event::read()? {
+            match event::read().unwrap() {
                 Event::Key(key_event) => {
                     match key_event.code {
                         KeyCode::Char('q') => break,
                         KeyCode::Enter => {
                             let action = app.top_actions[0];
-                            take_action(&mut app.state, app.current_player, action);
+                            azul::take_action(&mut app.state, app.current_player, action);
 
                             app.current_player += 1;
                             app.current_player %= n_players;
@@ -522,19 +282,20 @@ fn interactive_run(mut terminal: DefaultTerminal) -> color_eyre::Result<()> {
         }
 
         if app.state.is_game_over() {
-            break Ok(())
+            break;
         }
 
-        match event::read()? {
+        match event::read().unwrap() {
             Event::Key(key_event) => {
                 match key_event.code {
-                    KeyCode::Char('q') => break Ok(()),
+                    KeyCode::Char('q') => break,
                     _ => {}
                 }
             },
-            _ => { }
+            _ => {}
         }
     }
+    ratatui::restore();
 }
 
 fn main() {
@@ -543,6 +304,6 @@ fn main() {
 
     match args.commands {
         Commands::Simulate { log_file, game } => simulate(&game, &log_file, 10),
-        Commands::Interactive { game } => interactive(&game),
+        Commands::Interactive { game } => run_interactive(&game),
     }
 }
