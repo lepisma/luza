@@ -309,6 +309,26 @@ fn run_interactive(_game: &str) {
             break;
         }
     }
+
+    // Listen to Q unless user has showed intention to quit already
+    if !user_exit {
+        terminal.draw(|frame| {
+            frame.render_widget(app.clone(), frame.area());
+        }).unwrap();
+
+        loop {
+            match event::read().unwrap() {
+                Event::Key(key_event) => {
+                    match key_event.code {
+                        KeyCode::Char('q') => { break; },
+                        _ => {}
+                    }
+                },
+                _ => {}
+            };
+        }
+    }
+
     ratatui::restore();
 }
 

@@ -1,4 +1,5 @@
 use crate::games::azul::ActionDisplay;
+use crate::games::GameState;
 
 use super::azul::{self, Tile, WALL_COLORS};
 use ratatui::layout::{Constraint, Direction, Layout};
@@ -177,6 +178,12 @@ impl Widget for InteractiveApp {
             .border_set(border::THICK);
 
         let header_text = Text::from(vec![Line::from(vec![
+            " ".into(),
+            if self.state.is_game_over() {
+                Span::styled(" GAME OVER ", Style::default().fg(style::Color::Red)).bold().add_modifier(Modifier::SLOW_BLINK | Modifier::REVERSED)
+            } else {
+                Span::styled(" GAME RUNNING ", Style::default().fg(style::Color::Blue)).bold().add_modifier(Modifier::REVERSED)
+            },
             format!(" Players: {}, ", self.state.players.len()).into(),
             format!("Current Player: {}, ", self.current_player).into(),
             format!("Round: {}, ", self.state.rounds).into(),
