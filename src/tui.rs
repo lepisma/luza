@@ -172,9 +172,7 @@ impl Widget for InteractiveApp {
             ])
             .split(area);
 
-        let title = Line::from(" Game Info ".bold());
         let block = Block::bordered()
-            .title(title.centered())
             .border_set(border::THICK);
 
         let header_text = Text::from(vec![Line::from(vec![
