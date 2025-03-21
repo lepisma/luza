@@ -266,7 +266,7 @@ fn run_interactive(_game: &str) {
                     match key_event.code {
                         KeyCode::Char('q') => { user_exit = true; break; },
                         KeyCode::Enter => {
-                            let action = app.top_actions[app.selected_action];
+                            let action = app.top_actions[app.selected_action as usize];
                             azul::take_action(&mut app.state, app.current_player, action);
                             app.selected_action = 0;
 
@@ -278,7 +278,7 @@ fn run_interactive(_game: &str) {
                         KeyCode::Down => {
                             if app.top_actions.len() > 0 {
                                 app.selected_action += 1;
-                                app.selected_action = std::cmp::min(app.selected_action, app.top_actions.len() - 1);
+                                app.selected_action = std::cmp::min(app.selected_action, app.top_actions.len() as i32 - 1);
                             } else {
                                 app.selected_action = 0;
                             }
