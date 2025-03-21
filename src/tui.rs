@@ -1,4 +1,9 @@
+use std::time::TryFromFloatSecsError;
+
+use crate::games::azul::ActionDisplay;
+
 use super::azul::{self, Tile, WALL_COLORS};
+use clap::CommandFactory;
 use ratatui::layout::{Constraint, Direction, Layout};
 use ratatui::style::{self, Style};
 use ratatui::text::Span;
@@ -119,6 +124,28 @@ impl Widget for azul::PlayerState {
     }
 }
 
+// Format action for the main window selector
+fn action_span(action: &azul::Action) -> Line {
+    let display = match action.action_display_choice {
+        ActionDisplay::FactoryDisplay(i) => format!("D{}", i),
+        ActionDisplay::Center => "Center".to_string()
+    };
+
+    let row = match action.pattern_line_choice {
+        Some(i) => format!("row {}", i),
+        None => "penalty row".to_string()
+    };
+
+    Line::from(vec![
+        "  Take ".into(),
+        Span::styled("⬛", Style::default().fg(tile_to_color(action.color_choice))),
+        " from ".into(),
+        display.into(),
+        ", put in ".into(),
+        row.into()
+    ])
+}
+
 impl Widget for InteractiveApp {
     fn render(self, area: ratatui::prelude::Rect, buf: &mut ratatui::prelude::Buffer) {
         let layout = Layout::default()
@@ -223,8 +250,8 @@ impl Widget for InteractiveApp {
         let mut lines = Vec::new();
         lines.push(Line::from(""));
 
-        for action in self.top_actions {
-            lines.push(Line::from(format!(" {:?}", action)));
+        for action in &self.top_actions {
+            lines.push(action_span(action));
         }
 
         Paragraph::new(Text::from(lines))
