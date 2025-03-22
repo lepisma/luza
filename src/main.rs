@@ -1,5 +1,5 @@
 use ratatui::widgets::ListState;
-use tui::InteractiveApp;
+use tui::{ActionAnalysis, InteractiveApp};
 use std::fs::File;
 use std::io::BufWriter;
 use std::{collections::HashMap, path::PathBuf};
@@ -225,6 +225,7 @@ fn run_interactive(_game: &str) {
         actions: Vec::new(),
         actions_state: ListState::default(),
         last_move: None,
+        analysis: None,
     };
 
     let mut user_exit = false;
@@ -264,7 +265,14 @@ fn run_interactive(_game: &str) {
             match event::read().unwrap() {
                 Event::Key(key_event) => {
                     match key_event.code {
-                        KeyCode::Char('q') => { user_exit = true; break; },
+                        KeyCode::Char('q') => {
+                            if let Some(_) = app.analysis {
+                                app.analysis = None;
+                            } else {
+                                user_exit = true;
+                                break;
+                            }
+                        },
                         KeyCode::Char(' ') => {
                             let action = teacher(&app.state, app.current_player);
                             azul::take_action(&mut app.state, app.current_player, action);
@@ -315,6 +323,12 @@ fn run_interactive(_game: &str) {
                             } else {
                                 app.actions_state.select_first();
                             }
+                        },
+                        KeyCode::Char('a') => {
+                            app.analysis = Some(ActionAnalysis {
+                                score_gain: 0,
+                                teacher_expected_value: 0
+                            })
                         }
                         _ => {}
                     }

@@ -2,10 +2,10 @@ use crate::games::azul::ActionDisplay;
 use crate::games::GameState;
 
 use super::azul::{self, Tile, WALL_COLORS};
-use ratatui::layout::{Constraint, Direction, Layout};
+use ratatui::layout::{Constraint, Direction, Flex, Layout};
 use ratatui::style::{self, Modifier, Style};
 use ratatui::text::Span;
-use ratatui::widgets::{BorderType, Borders, HighlightSpacing, List, ListState, StatefulWidget};
+use ratatui::widgets::{BorderType, Borders, Clear, HighlightSpacing, List, ListState, StatefulWidget};
 
 use ratatui::{
     buffer::Buffer,
@@ -23,6 +23,12 @@ pub struct Move {
 }
 
 #[derive(Clone)]
+pub struct ActionAnalysis {
+    pub score_gain: i32,
+    pub teacher_expected_value: i32,
+}
+
+#[derive(Clone)]
 pub struct InteractiveApp {
     pub state: azul::State,
     pub current_player: usize,
@@ -31,6 +37,7 @@ pub struct InteractiveApp {
     pub actions: Vec<azul::Action>,
     pub actions_state: ListState,
     pub last_move: Option<Move>,
+    pub analysis: Option<ActionAnalysis>,
 }
 
 fn tile_to_color(tile: Tile) -> style::Color {
@@ -306,5 +313,20 @@ impl Widget for InteractiveApp {
             ]).right_aligned());
 
         block.render(layout[3], buf);
+
+        // Action analysis popup
+        if let Some(analysis) = self.analysis {
+            let block = Block::bordered().title(" Action Details ");
+            let vertical = Layout::vertical([Constraint::Percentage(60)]).flex(Flex::Center);
+            let horizontal = Layout::horizontal([Constraint::Percentage(60)]).flex(Flex::Center);
+            let [area] = vertical.areas(area);
+            let [area] = horizontal.areas(area);
+            Clear.render(area, buf);
+
+            Paragraph::new(Text::raw(format!("\n\n  Immediate Gain: {}\n  Expected Final Value: {}", analysis.score_gain, analysis.teacher_expected_value)))
+                .render(area, buf);
+
+            block.render(area, buf);
+        }
     }
 }
