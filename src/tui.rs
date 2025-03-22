@@ -266,7 +266,7 @@ impl Widget for InteractiveApp {
                 };
 
                 last_move_lines.push(Line::from(vec![
-                    format!("        Last Move by P{}: ", mov.player).into(),
+                    format!("        Last Move by P{}: ", mov.player).italic().into(),
                     "Take ".into(),
                     Span::styled("⬛", Style::default().fg(tile_to_color(mov.action.color_choice))),
                     " from ".into(),
@@ -277,7 +277,7 @@ impl Widget for InteractiveApp {
 
             },
             None => {
-                last_move_lines.push("        Last Move: NA".into())
+                last_move_lines.push("        Last Move: NA".italic().into())
             }
         }
 
