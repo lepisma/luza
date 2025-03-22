@@ -1,3 +1,4 @@
+use ratatui::widgets::ListState;
 use tui::InteractiveApp;
 use std::fs::File;
 use std::io::BufWriter;
@@ -6,7 +7,6 @@ use std::sync::{Arc, Mutex};
 use rayon::iter::ParallelIterator;
 
 use crossterm::event::{self, Event, KeyCode};
-use ratatui::DefaultTerminal;
 use games::{azul, Validate, GameState};
 use rayon::iter::IntoParallelIterator;
 use clap::{Parser, Subcommand};
@@ -222,8 +222,8 @@ fn run_interactive(_game: &str) {
         current_player: 0,
         ply: 0,
         ply_round: 0,
-        top_actions: Vec::new(),
-        selected_action: 0,
+        actions: Vec::new(),
+        actions_state: ListState::default(),
     };
 
     let mut user_exit = false;
@@ -253,9 +253,8 @@ fn run_interactive(_game: &str) {
                 break;
             }
 
-            app.top_actions = azul::list_valid_actions(&app.state, app.current_player);
-            app.top_actions.sort_by_key(|a| -azul::calculate_reward(&app.state, app.current_player, a.clone()));
-            app.top_actions = app.top_actions.into_iter().take(20).collect();
+            app.actions = azul::list_valid_actions(&app.state, app.current_player);
+            app.actions.sort_by_key(|a| -azul::calculate_reward(&app.state, app.current_player, a.clone()));
 
             terminal.draw(|frame| {
                 frame.render_widget(app.clone(), frame.area());
@@ -269,36 +268,38 @@ fn run_interactive(_game: &str) {
                             let action = teacher(&app.state, app.current_player);
                             azul::take_action(&mut app.state, app.current_player, action);
 
+                            app.actions_state.select_first();
                             app.current_player += 1;
                             app.current_player %= n_players;
                             app.ply += 1;
                             app.ply_round += 1;
                         },
                         KeyCode::Enter => {
-                            let action = app.top_actions[app.selected_action as usize];
-                            azul::take_action(&mut app.state, app.current_player, action);
-                            app.selected_action = 0;
+                            match app.actions_state.selected() {
+                                Some(action_idx) => {
+                                    let action = app.actions[action_idx];
+                                    azul::take_action(&mut app.state, app.current_player, action);
 
-                            app.current_player += 1;
-                            app.current_player %= n_players;
-                            app.ply += 1;
-                            app.ply_round += 1;
+                                    app.actions_state.select_first();
+                                    app.current_player += 1;
+                                    app.current_player %= n_players;
+                                    app.ply += 1;
+                                    app.ply_round += 1;
+                                },
+                                None => {}
+                            };
                         },
                         KeyCode::Down => {
-                            if app.top_actions.len() > 0 {
-                                app.selected_action += 1;
-                                app.selected_action = std::cmp::min(app.selected_action, app.top_actions.len() as i32 - 1);
+                            if let Some(action_idx) = app.actions_state.selected() {
+                                if action_idx < app.actions.len() - 1 {
+                                    app.actions_state.select_next();
+                                }
                             } else {
-                                app.selected_action = 0;
+                                app.actions_state.select_first();
                             }
                         },
                         KeyCode::Up => {
-                            if app.top_actions.len() > 0 {
-                                app.selected_action -= 1;
-                                app.selected_action = std::cmp::max(app.selected_action, 0);
-                            } else {
-                                app.selected_action = 0;
-                            }
+                            app.actions_state.select_previous();
                         }
                         _ => {}
                     }
