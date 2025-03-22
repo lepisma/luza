@@ -16,6 +16,11 @@ use ratatui::{
     widgets::{Block, Paragraph, Widget},
 };
 
+#[derive(Clone)]
+pub struct Move {
+    pub player: usize,
+    pub action: azul::Action,
+}
 
 #[derive(Clone)]
 pub struct InteractiveApp {
@@ -25,6 +30,7 @@ pub struct InteractiveApp {
     pub ply_round: usize,
     pub actions: Vec<azul::Action>,
     pub actions_state: ListState,
+    pub last_move: Option<Move>,
 }
 
 fn tile_to_color(tile: Tile) -> style::Color {
@@ -238,6 +244,54 @@ impl Widget for InteractiveApp {
             block.render(players_layout[i], buf);
         }
 
+        let actions_layout = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints(vec![Constraint::Max(4), Constraint::Max(17)])
+            .split(layout[3]);
+
+        let mut last_move_lines = Vec::new();
+        last_move_lines.push(Line::from(""));
+        last_move_lines.push(Line::from(""));
+
+        match self.last_move {
+            Some(mov) => {
+                let display = match mov.action.action_display_choice {
+                    ActionDisplay::FactoryDisplay(i) => format!("D{}", i),
+                    ActionDisplay::Center => "Center".to_string()
+                };
+
+                let row = match mov.action.pattern_line_choice {
+                    Some(i) => format!("row {}", i),
+                    None => "penalty row".to_string()
+                };
+
+                last_move_lines.push(Line::from(vec![
+                    format!("        Last Move by P{}: ", mov.player).into(),
+                    "Take ".into(),
+                    Span::styled("⬛", Style::default().fg(tile_to_color(mov.action.color_choice))),
+                    " from ".into(),
+                    display.into(),
+                    ", put in ".into(),
+                    row.into()
+                ]));
+
+            },
+            None => {
+                last_move_lines.push("        Last Move: NA".into())
+            }
+        }
+
+        Paragraph::new(last_move_lines)
+            .render(actions_layout[0], buf);
+
+        let items = List::new(self.actions.iter().enumerate().map(|(idx, action)| action_span(action, idx)))
+            .highlight_style(Style::default().add_modifier(Modifier::BOLD))
+            .highlight_symbol(" →")
+            .highlight_spacing(HighlightSpacing::Always)
+            .repeat_highlight_symbol(true);
+
+        StatefulWidget::render(items, actions_layout[1], buf, &mut self.actions_state);
+
         let block = Block::bordered()
             .title(Line::from(" Actions ".bold()).centered())
             .title_bottom(Line::from(vec![
@@ -251,13 +305,6 @@ impl Widget for InteractiveApp {
                 "<q> ".blue().bold(),
             ]).right_aligned());
 
-        let items = List::new(self.actions.iter().enumerate().map(|(idx, action)| action_span(action, idx)))
-            .block(block)
-            .highlight_style(Style::default().add_modifier(Modifier::BOLD))
-            .highlight_symbol(" →")
-            .highlight_spacing(HighlightSpacing::Always)
-            .repeat_highlight_symbol(true);
-
-        StatefulWidget::render(items, layout[3], buf, &mut self.actions_state);
+        block.render(layout[3], buf);
     }
 }

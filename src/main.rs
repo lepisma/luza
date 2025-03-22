@@ -224,6 +224,7 @@ fn run_interactive(_game: &str) {
         ply_round: 0,
         actions: Vec::new(),
         actions_state: ListState::default(),
+        last_move: None,
     };
 
     let mut user_exit = false;
@@ -268,6 +269,11 @@ fn run_interactive(_game: &str) {
                             let action = teacher(&app.state, app.current_player);
                             azul::take_action(&mut app.state, app.current_player, action);
 
+                            app.last_move = Some(tui::Move {
+                                player: app.current_player,
+                                action: action.clone()
+                            });
+
                             app.actions_state.select_first();
                             app.current_player += 1;
                             app.current_player %= n_players;
@@ -279,6 +285,11 @@ fn run_interactive(_game: &str) {
                                 Some(action_idx) => {
                                     let action = app.actions[action_idx];
                                     azul::take_action(&mut app.state, app.current_player, action);
+
+                                    app.last_move = Some(tui::Move {
+                                        player: app.current_player,
+                                        action: action.clone()
+                                    });
 
                                     app.actions_state.select_first();
                                     app.current_player += 1;
@@ -299,7 +310,11 @@ fn run_interactive(_game: &str) {
                             }
                         },
                         KeyCode::Up => {
-                            app.actions_state.select_previous();
+                            if let Some(_) = app.actions_state.selected() {
+                                app.actions_state.select_previous();
+                            } else {
+                                app.actions_state.select_first();
+                            }
                         }
                         _ => {}
                     }
