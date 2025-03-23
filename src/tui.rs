@@ -1,3 +1,5 @@
+use std::ops::BitOrAssign;
+
 use crate::games::azul::ActionDisplay;
 use crate::games::GameState;
 
@@ -5,7 +7,7 @@ use super::azul::{self, Tile, WALL_COLORS};
 use ratatui::layout::{Constraint, Direction, Flex, Layout};
 use ratatui::style::{self, Modifier, Style};
 use ratatui::text::Span;
-use ratatui::widgets::{BorderType, Borders, Clear, HighlightSpacing, List, ListState, StatefulWidget};
+use ratatui::widgets::{BorderType, Borders, Clear, HighlightSpacing, List, ListState, Row, StatefulWidget, Table};
 
 use ratatui::{
     buffer::Buffer,
@@ -25,7 +27,8 @@ pub struct Move {
 #[derive(Clone)]
 pub struct ActionAnalysis {
     pub score_gain: i32,
-    pub teacher_expected_value: i32,
+    pub expected_score: i32,
+    pub win_probability: f32,
 }
 
 #[derive(Clone)]
@@ -323,9 +326,18 @@ impl Widget for InteractiveApp {
             let [area] = horizontal.areas(area);
             Clear.render(area, buf);
 
-            Paragraph::new(Text::raw(format!("\n\n  Immediate Gain: {}\n  Expected Final Value: {}", analysis.score_gain, analysis.teacher_expected_value)))
-                .render(area, buf);
+            let table = Table::new([
+                Row::new(vec!["", ""]),
+                Row::new(vec!["  Immediate Gain".to_string(), analysis.score_gain.to_string()]),
+                Row::new(vec!["  Expected Score".to_string(), analysis.expected_score.to_string()]),
+                Row::new(vec!["  Win Probability".to_string(), analysis.win_probability.to_string()]),
+            ], [
+                Constraint::Percentage(80),
+                Constraint::Percentage(20),
+            ])
+                .column_spacing(1);
 
+            Widget::render(table, area, buf);
             block.render(area, buf);
         }
     }

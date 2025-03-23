@@ -327,7 +327,8 @@ fn run_interactive(_game: &str) {
                         KeyCode::Char('a') => {
                             app.analysis = Some(ActionAnalysis {
                                 score_gain: 0,
-                                teacher_expected_value: 0
+                                expected_score: 0,
+                                win_probability: 0.0,
                             })
                         }
                         _ => {}
