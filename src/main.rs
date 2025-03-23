@@ -264,74 +264,80 @@ fn run_interactive(_game: &str) {
 
             match event::read().unwrap() {
                 Event::Key(key_event) => {
-                    match key_event.code {
-                        KeyCode::Char('q') => {
-                            if let Some(_) = app.analysis {
+                    if let Some(_) = app.analysis {
+                        // When the popup is open, only exiting is allowed
+                        match key_event.code {
+                            KeyCode::Char('q') => {
                                 app.analysis = None;
-                            } else {
+                            },
+                            _ => {}
+                        }
+                    } else {
+                        match key_event.code {
+                            KeyCode::Char('q') => {
                                 user_exit = true;
                                 break;
-                            }
-                        },
-                        KeyCode::Char(' ') => {
-                            let action = teacher(&app.state, app.current_player);
-                            azul::take_action(&mut app.state, app.current_player, action);
+                            },
+                            KeyCode::Char(' ') => {
+                                let action = teacher(&app.state, app.current_player);
+                                azul::take_action(&mut app.state, app.current_player, action);
 
-                            app.last_move = Some(tui::Move {
-                                player: app.current_player,
-                                action: action.clone()
-                            });
+                                app.last_move = Some(tui::Move {
+                                    player: app.current_player,
+                                    action: action.clone()
+                                });
 
-                            app.actions_state.select_first();
-                            app.current_player += 1;
-                            app.current_player %= n_players;
-                            app.ply += 1;
-                            app.ply_round += 1;
-                        },
-                        KeyCode::Enter => {
-                            match app.actions_state.selected() {
-                                Some(action_idx) => {
-                                    let action = app.actions[action_idx];
-                                    azul::take_action(&mut app.state, app.current_player, action);
+                                app.actions_state.select_first();
+                                app.current_player += 1;
+                                app.current_player %= n_players;
+                                app.ply += 1;
+                                app.ply_round += 1;
+                            },
+                            KeyCode::Enter => {
+                                match app.actions_state.selected() {
+                                    Some(action_idx) => {
+                                        let action = app.actions[action_idx];
+                                        azul::take_action(&mut app.state, app.current_player, action);
 
-                                    app.last_move = Some(tui::Move {
-                                        player: app.current_player,
-                                        action: action.clone()
-                                    });
+                                        app.last_move = Some(tui::Move {
+                                            player: app.current_player,
+                                            action: action.clone()
+                                        });
 
+                                        app.actions_state.select_first();
+                                        app.current_player += 1;
+                                        app.current_player %= n_players;
+                                        app.ply += 1;
+                                        app.ply_round += 1;
+                                    },
+                                    None => {}
+                                };
+                            },
+                            KeyCode::Down => {
+                                if let Some(action_idx) = app.actions_state.selected() {
+                                    if action_idx < app.actions.len() - 1 {
+                                        app.actions_state.select_next();
+                                    }
+                                } else {
                                     app.actions_state.select_first();
-                                    app.current_player += 1;
-                                    app.current_player %= n_players;
-                                    app.ply += 1;
-                                    app.ply_round += 1;
-                                },
-                                None => {}
-                            };
-                        },
-                        KeyCode::Down => {
-                            if let Some(action_idx) = app.actions_state.selected() {
-                                if action_idx < app.actions.len() - 1 {
-                                    app.actions_state.select_next();
                                 }
-                            } else {
-                                app.actions_state.select_first();
+                            },
+                            KeyCode::Up => {
+                                if let Some(_) = app.actions_state.selected() {
+                                    app.actions_state.select_previous();
+                                } else {
+                                    app.actions_state.select_first();
+                                }
+                            },
+                            KeyCode::Char('a') => {
+                                app.analysis = Some(ActionAnalysis {
+                                    score_gain: 0,
+                                    expected_score: 0,
+                                    win_probability: 0.0,
+                                })
                             }
-                        },
-                        KeyCode::Up => {
-                            if let Some(_) = app.actions_state.selected() {
-                                app.actions_state.select_previous();
-                            } else {
-                                app.actions_state.select_first();
-                            }
-                        },
-                        KeyCode::Char('a') => {
-                            app.analysis = Some(ActionAnalysis {
-                                score_gain: 0,
-                                expected_score: 0,
-                                win_probability: 0.0,
-                            })
+                            _ => {}
                         }
-                        _ => {}
                     }
                 },
                 _ => {}
