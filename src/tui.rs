@@ -284,7 +284,6 @@ impl Widget for InteractiveApp {
                     ", put in ".into(),
                     row.into()
                 ]));
-
             },
             None => {
                 last_move_lines.push("        Last Move: NA".italic().into())
@@ -319,14 +318,47 @@ impl Widget for InteractiveApp {
 
         // Action analysis popup
         if let Some(analysis) = self.analysis {
-            let block = Block::bordered().title(" Action Details ");
+            let block = Block::bordered()
+                .border_type(BorderType::Thick)
+                .title(" Action Details ");
             let vertical = Layout::vertical([Constraint::Percentage(60)]).flex(Flex::Center);
             let horizontal = Layout::horizontal([Constraint::Percentage(60)]).flex(Flex::Center);
             let [area] = vertical.areas(area);
             let [area] = horizontal.areas(area);
             Clear.render(area, buf);
 
+            let selected_action = self.actions[self.actions_state.selected().unwrap()];
+            let mut selected_action_line = Vec::new();
+            selected_action_line.push(Line::from(""));
+            selected_action_line.push(Line::from(""));
+
+            let selected_display = match selected_action.action_display_choice {
+                ActionDisplay::FactoryDisplay(i) => format!("D{}", i),
+                ActionDisplay::Center => "Center".to_string()
+            };
+
+            let selected_row = match selected_action.pattern_line_choice {
+                Some(i) => format!("row {}", i),
+                None => "penalty row".to_string()
+            };
+
+            selected_action_line.push(Line::from(vec![
+                format!("  Move by P{}: ", self.current_player).italic().into(),
+                "Take ".into(),
+                Span::styled("⬛", Style::default().fg(tile_to_color(selected_action.color_choice))),
+                " from ".into(),
+                selected_display.into(),
+                ", put in ".into(),
+                selected_row.into()
+            ]));
+
+            Paragraph::new(selected_action_line)
+                .render(area, buf);
+
             let table = Table::new([
+                Row::new(vec!["", ""]),
+                Row::new(vec!["", ""]),
+                Row::new(vec!["", ""]),
                 Row::new(vec!["", ""]),
                 Row::new(vec!["  Immediate Gain".to_string(), analysis.score_gain.to_string()]),
                 Row::new(vec!["  Expected Score".to_string(), analysis.expected_score.to_string()]),

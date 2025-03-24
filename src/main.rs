@@ -330,11 +330,13 @@ fn run_interactive(_game: &str) {
                                 }
                             },
                             KeyCode::Char('a') => {
-                                app.analysis = Some(ActionAnalysis {
-                                    score_gain: 0,
-                                    expected_score: 0,
-                                    win_probability: 0.0,
-                                })
+                                if let Some(_) = app.actions_state.selected() {
+                                    app.analysis = Some(ActionAnalysis {
+                                        score_gain: 0,
+                                        expected_score: 0,
+                                        win_probability: 0.0,
+                                    });
+                                }
                             }
                             _ => {}
                         }
