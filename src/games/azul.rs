@@ -694,6 +694,48 @@ fn mcts_ply(state: &State, player_idx: usize) -> Action {
     actions[action_idx]
 }
 
+// Q function using MCTS but not using distribution sampling in the first step
+pub fn mcts_q_fn(state: &State, player_idx: usize, action: Action) -> (f32, f32) {
+    let n_games = 200;
+
+    let mut scores: Vec<usize> = Vec::new();
+    let mut n_wins = 0;
+
+    for _ in 0..n_games {
+        let mut future_state = state.clone();
+        take_action(&mut future_state, player_idx, action);
+        let mut next_player_idx = player_idx;
+
+        // Now we keep rolling till the game is complete. This implementation
+        // doesn't do caching so it will not be super efficient nor effective.
+        // Every player does a weighted sampling over possible next action
+        // rewards to decide their action.
+        loop {
+            if future_state.is_game_over() {
+                break;
+            }
+
+            if future_state.is_round_over() {
+                future_state.rounds += 1;
+                for i in 0..future_state.players.len() {
+                    score_round(&mut future_state, i);
+                }
+                refill_tiles(&mut future_state);
+            }
+
+            next_player_idx += 1;
+            next_player_idx %= future_state.players.len();
+
+            let next_action = mcts_ply(&future_state, next_player_idx);
+            take_action(&mut future_state, next_player_idx, next_action);
+        }
+        scores.push(future_state.players[player_idx].score as usize);
+        n_wins += (player_idx == winner(&future_state)) as usize;
+    }
+
+    ((scores.into_iter().sum::<usize>() as f32 / n_games as f32), n_wins as f32 / n_games as f32)
+}
+
 // Run MCTS guided by immediate scores
 pub fn play_mcts(state: &State, player_idx: usize) -> Action {
     let n_games = 200;

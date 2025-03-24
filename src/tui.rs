@@ -27,7 +27,7 @@ pub struct Move {
 #[derive(Clone)]
 pub struct ActionAnalysis {
     pub score_gain: i32,
-    pub expected_score: i32,
+    pub expected_score: f32,
     pub win_probability: f32,
 }
 

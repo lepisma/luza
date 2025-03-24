@@ -333,10 +333,13 @@ fn run_interactive(_game: &str) {
                                 if let Some(action_idx) = app.actions_state.selected() {
                                     let action = app.actions[action_idx];
 
+                                    let score_gain = azul::calculate_reward(&app.state, app.current_player, action);
+                                    let (expected_score, win_probability) = azul::mcts_q_fn(&app.state, app.current_player, action);
+
                                     app.analysis = Some(ActionAnalysis {
-                                        score_gain: azul::calculate_reward(&app.state, app.current_player, action),
-                                        expected_score: 0,
-                                        win_probability: 0.0,
+                                        score_gain,
+                                        expected_score,
+                                        win_probability,
                                     });
                                 }
                             }
