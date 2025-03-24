@@ -44,13 +44,13 @@ pub struct State {
 }
 
 // Action that tells which tile stash is picked by a player
-#[derive(Clone, Copy, Debug, serde::Serialize, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, serde::Serialize, Eq, PartialEq, Hash)]
 pub enum ActionDisplay {
     FactoryDisplay(usize),
     Center
 }
 
-#[derive(Clone, Debug, Copy, serde::Serialize, Eq, PartialEq)]
+#[derive(Clone, Debug, Copy, serde::Serialize, Eq, PartialEq, Hash)]
 pub struct Action {
     pub action_display_choice: ActionDisplay,
     pub color_choice: Tile,

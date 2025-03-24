@@ -222,10 +222,11 @@ fn run_interactive(_game: &str) {
         current_player: 0,
         ply: 0,
         ply_round: 0,
+        last_move: None,
         actions: Vec::new(),
         actions_state: ListState::default(),
-        last_move: None,
-        analysis: None,
+        analyses: HashMap::new(),
+        show_action_details: false,
     };
 
     let mut user_exit = false;
@@ -264,11 +265,11 @@ fn run_interactive(_game: &str) {
 
             match event::read().unwrap() {
                 Event::Key(key_event) => {
-                    if let Some(_) = app.analysis {
+                    if app.show_action_details {
                         // When the popup is open, only exiting is allowed
                         match key_event.code {
                             KeyCode::Char('q') => {
-                                app.analysis = None;
+                                app.show_action_details = false;
                             },
                             _ => {}
                         }
@@ -287,6 +288,9 @@ fn run_interactive(_game: &str) {
                                     action: action.clone()
                                 });
 
+                                // Reset analysis cache
+                                app.analyses = HashMap::new();
+
                                 app.actions_state.select_first();
                                 app.current_player += 1;
                                 app.current_player %= n_players;
@@ -303,6 +307,9 @@ fn run_interactive(_game: &str) {
                                             player: app.current_player,
                                             action: action.clone()
                                         });
+
+                                        // Reset analysis cache
+                                        app.analyses = HashMap::new();
 
                                         app.actions_state.select_first();
                                         app.current_player += 1;
@@ -333,14 +340,18 @@ fn run_interactive(_game: &str) {
                                 if let Some(action_idx) = app.actions_state.selected() {
                                     let action = app.actions[action_idx];
 
-                                    let score_gain = azul::calculate_reward(&app.state, app.current_player, action);
-                                    let (expected_score, win_probability) = azul::mcts_q_fn(&app.state, app.current_player, action);
+                                    if !app.analyses.contains_key(&action) {
+                                        let score_gain = azul::calculate_reward(&app.state, app.current_player, action);
+                                        let (expected_score, win_probability) = azul::mcts_q_fn(&app.state, app.current_player, action);
 
-                                    app.analysis = Some(ActionAnalysis {
-                                        score_gain,
-                                        expected_score,
-                                        win_probability,
-                                    });
+                                        app.analyses.insert(action, ActionAnalysis {
+                                            score_gain,
+                                            expected_score,
+                                            win_probability,
+                                        });
+                                    }
+
+                                    app.show_action_details = true;
                                 }
                             }
                             _ => {}

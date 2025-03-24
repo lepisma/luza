@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::ops::BitOrAssign;
 
 use crate::games::azul::ActionDisplay;
@@ -24,7 +25,7 @@ pub struct Move {
     pub action: azul::Action,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Copy)]
 pub struct ActionAnalysis {
     pub score_gain: i32,
     pub expected_score: f32,
@@ -37,10 +38,11 @@ pub struct InteractiveApp {
     pub current_player: usize,
     pub ply: usize,
     pub ply_round: usize,
+    pub last_move: Option<Move>,
     pub actions: Vec<azul::Action>,
     pub actions_state: ListState,
-    pub last_move: Option<Move>,
-    pub analysis: Option<ActionAnalysis>,
+    pub analyses: HashMap<azul::Action, ActionAnalysis>,
+    pub show_action_details: bool,
 }
 
 fn tile_to_color(tile: Tile) -> style::Color {
@@ -317,7 +319,7 @@ impl Widget for InteractiveApp {
         block.render(layout[3], buf);
 
         // Action analysis popup
-        if let Some(analysis) = self.analysis {
+        if self.show_action_details {
             let block = Block::bordered()
                 .border_type(BorderType::Thick)
                 .title(" Action Details ");
@@ -354,6 +356,8 @@ impl Widget for InteractiveApp {
 
             Paragraph::new(selected_action_line)
                 .render(area, buf);
+
+            let analysis = self.analyses[&selected_action];
 
             let table = Table::new([
                 Row::new(vec!["", ""]),
