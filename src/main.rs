@@ -330,9 +330,11 @@ fn run_interactive(_game: &str) {
                                 }
                             },
                             KeyCode::Char('a') => {
-                                if let Some(_) = app.actions_state.selected() {
+                                if let Some(action_idx) = app.actions_state.selected() {
+                                    let action = app.actions[action_idx];
+
                                     app.analysis = Some(ActionAnalysis {
-                                        score_gain: 0,
+                                        score_gain: azul::calculate_reward(&app.state, app.current_player, action),
                                         expected_score: 0,
                                         win_probability: 0.0,
                                     });
