@@ -162,11 +162,10 @@ fn action_span(action: &azul::Action, action_idx: usize) -> Line {
 
     Line::from(vec![
         Span::styled(format!(" {:>3}. ", action_idx), Style::default()),
-        "Take ".into(),
-        Span::styled("⬛", Style::default().fg(tile_to_color(action.color_choice))),
-        " from ".into(),
         display.into(),
-        ", put in ".into(),
+        " ".into(),
+        Span::styled("⬛", Style::default().fg(tile_to_color(action.color_choice))),
+        " to ".into(),
         row.into()
     ])
 }
@@ -179,7 +178,7 @@ impl Widget for InteractiveApp {
                 Constraint::Length(3),
                 Constraint::Length(7),
                 Constraint::Length(12),
-                Constraint::Length(22),
+                Constraint::Length(15),
             ])
             .split(area);
 
@@ -265,7 +264,7 @@ impl Widget for InteractiveApp {
 
         let actions_layout = Layout::default()
             .direction(Direction::Vertical)
-            .constraints(vec![Constraint::Max(4), Constraint::Max(17)])
+            .constraints(vec![Constraint::Max(4), Constraint::Max(10)])
             .split(layout[3]);
 
         let mut last_move_lines = Vec::new();
@@ -286,11 +285,10 @@ impl Widget for InteractiveApp {
 
                 last_move_lines.push(Line::from(vec![
                     format!("        Last Move by P{}: ", mov.player).italic().into(),
-                    "Take ".into(),
-                    Span::styled("⬛", Style::default().fg(tile_to_color(mov.action.color_choice))),
-                    " from ".into(),
                     display.into(),
-                    ", put in ".into(),
+                    " ".into(),
+                    Span::styled("⬛", Style::default().fg(tile_to_color(mov.action.color_choice))),
+                    " to ".into(),
                     row.into()
                 ]));
             },
@@ -358,11 +356,10 @@ impl Widget for InteractiveApp {
 
             selected_action_line.push(Line::from(vec![
                 format!("  Move by P{}: ", self.current_player).italic().into(),
-                "Take ".into(),
-                Span::styled("⬛", Style::default().fg(tile_to_color(selected_action.color_choice))),
-                " from ".into(),
                 selected_display.into(),
-                ", put in ".into(),
+                " ".into(),
+                Span::styled("⬛", Style::default().fg(tile_to_color(selected_action.color_choice))),
+                " to ".into(),
                 selected_row.into()
             ]));
 
