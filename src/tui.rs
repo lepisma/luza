@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::ops::BitOrAssign;
 
 use crate::games::azul::ActionDisplay;
 use crate::games::GameState;
@@ -33,6 +32,13 @@ pub struct ActionAnalysis {
 }
 
 #[derive(Clone)]
+pub struct Heuristic {
+    pub name: String,
+    pub description: Option<String>,
+    pub function: fn(&azul::State, usize) -> Option<azul::Action>,
+}
+
+#[derive(Clone)]
 pub struct InteractiveApp {
     pub state: azul::State,
     pub current_player: usize,
@@ -43,6 +49,7 @@ pub struct InteractiveApp {
     pub actions_state: ListState,
     pub analyses: HashMap<azul::Action, ActionAnalysis>,
     pub show_action_details: bool,
+    pub heuristics: Vec<Heuristic>,
 }
 
 fn tile_to_color(tile: Tile) -> style::Color {
@@ -238,7 +245,7 @@ impl Widget for InteractiveApp {
             Block::bordered().title(format!(" D{} ", i)).render(factory_layout[i], buf);
         }
 
-        self.state.center.render(display_layout[1], buf);
+        self.state.center.clone().render(display_layout[1], buf);
 
         let players_layout = Layout::default()
             .direction(Direction::Horizontal)
@@ -329,6 +336,11 @@ impl Widget for InteractiveApp {
             let [area] = horizontal.areas(area);
             Clear.render(area, buf);
 
+            let analysis_layout = Layout::default()
+                .direction(Direction::Vertical)
+                .constraints(vec![Constraint::Length(4), Constraint::Length(4), Constraint::Min(10)])
+                .split(area);
+
             let selected_action = self.actions[self.actions_state.selected().unwrap()];
             let mut selected_action_line = Vec::new();
             selected_action_line.push(Line::from(""));
@@ -355,15 +367,11 @@ impl Widget for InteractiveApp {
             ]));
 
             Paragraph::new(selected_action_line)
-                .render(area, buf);
+                .render(analysis_layout[0], buf);
 
             let analysis = self.analyses[&selected_action];
 
             let table = Table::new([
-                Row::new(vec!["", ""]),
-                Row::new(vec!["", ""]),
-                Row::new(vec!["", ""]),
-                Row::new(vec!["", ""]),
                 Row::new(vec!["  Immediate Gain".to_string(), analysis.score_gain.to_string()]),
                 Row::new(vec!["  Expected Score".to_string(), analysis.expected_score.to_string()]),
                 Row::new(vec!["  Win Probability".to_string(), analysis.win_probability.to_string()]),
@@ -373,7 +381,30 @@ impl Widget for InteractiveApp {
             ])
                 .column_spacing(1);
 
-            Widget::render(table, area, buf);
+            Widget::render(table, analysis_layout[1], buf);
+
+            let mut rows = vec![];
+
+            for heuristic in &self.heuristics {
+                let result = (heuristic.function)(&self.state, self.current_player);
+                let applicable = result.is_some();
+                let action_match = if let Some(heuristic_action) = result {
+                    heuristic_action == selected_action
+                } else { false };
+
+                rows.push(Row::new(vec![format!("  {}", heuristic.name), applicable.to_string(), action_match.to_string()]));
+            }
+
+            let table = Table::new(rows, [
+                Constraint::Percentage(60),
+                Constraint::Percentage(20),
+                Constraint::Percentage(20),
+            ])
+                .column_spacing(1)
+                .header(Row::new(vec!["  Heuristic", "Applicable", "Match"]));
+
+            Widget::render(table, analysis_layout[2], buf);
+
             block.render(area, buf);
         }
     }

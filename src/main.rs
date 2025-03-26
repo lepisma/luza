@@ -1,5 +1,6 @@
+use games::azul::play_partial_greedy;
 use ratatui::widgets::ListState;
-use tui::{ActionAnalysis, InteractiveApp};
+use tui::{ActionAnalysis, Heuristic, InteractiveApp};
 use std::fs::File;
 use std::io::BufWriter;
 use std::{collections::HashMap, path::PathBuf};
@@ -227,6 +228,13 @@ fn run_interactive(_game: &str) {
         actions_state: ListState::default(),
         analyses: HashMap::new(),
         show_action_details: false,
+        heuristics: vec![
+            Heuristic {
+                name: "greedy".to_string(),
+                description: None,
+                function: play_partial_greedy,
+            }
+        ]
     };
 
     let mut user_exit = false;
