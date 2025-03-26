@@ -34,7 +34,6 @@ pub struct ActionAnalysis {
 #[derive(Clone)]
 pub struct Heuristic {
     pub name: String,
-    pub description: Option<String>,
     pub function: fn(&azul::State, usize) -> Option<azul::Action>,
 }
 
