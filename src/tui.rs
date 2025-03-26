@@ -175,10 +175,12 @@ impl Widget for InteractiveApp {
         let layout = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
-                Constraint::Length(3),
-                Constraint::Length(7),
-                Constraint::Length(12),
-                Constraint::Length(15),
+                Constraint::Length(3),  // Header
+                Constraint::Length(7),  // Displays
+                Constraint::Length(12), // Player States
+                Constraint::Length(15), // Actions
+                Constraint::Length(7),  // Heuristics Analysis
+                Constraint::Length(7),  // States Analysis
             ])
             .split(area);
 
@@ -308,7 +310,8 @@ impl Widget for InteractiveApp {
 
         StatefulWidget::render(items, actions_layout[1], buf, &mut self.actions_state);
 
-        let block = Block::bordered()
+        Block::bordered()
+            .border_set(border::THICK)
             .title(Line::from(" Actions ".bold()).centered())
             .title_bottom(Line::from(vec![
                 " Teacher Play ".into(),
@@ -319,9 +322,16 @@ impl Widget for InteractiveApp {
                 "<RET> ".blue().bold(),
                 " Quit ".into(),
                 "<q> ".blue().bold(),
-            ]).right_aligned());
+            ]).right_aligned())
+            .render(layout[3], buf);
 
-        block.render(layout[3], buf);
+        Block::bordered()
+            .title(" Heuristic Analysis ")
+            .render(layout[4], buf);
+
+        Block::bordered()
+            .title(" State Analysis ")
+            .render(layout[5], buf);
 
         // Action analysis popup
         if self.show_action_details {
