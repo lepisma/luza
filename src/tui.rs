@@ -49,6 +49,8 @@ pub struct InteractiveApp {
     pub actions_state: ListState,
     pub analyses: HashMap<azul::Action, ActionAnalysis>,
     pub show_action_details: bool,
+    pub show_heuristic_details: bool,
+    pub show_state_details: bool,
     pub heuristics: Vec<Heuristic>,
 }
 
@@ -316,8 +318,6 @@ impl Widget for InteractiveApp {
             .title_bottom(Line::from(vec![
                 " Teacher Play ".into(),
                 "<SPC> ".blue().bold(),
-                " Analyze Action ".into(),
-                "<a> ".blue().bold(),
                 " Proceed ".into(),
                 "<RET> ".blue().bold(),
                 " Quit ".into(),
@@ -327,10 +327,18 @@ impl Widget for InteractiveApp {
 
         Block::bordered()
             .title(" Heuristic Analysis ")
+            .title_bottom(Line::from(vec![
+                " Show more ".into(),
+                "<h> ".blue().bold(),
+            ]).right_aligned())
             .render(layout[4], buf);
 
         Block::bordered()
             .title(" State Analysis ")
+            .title_bottom(Line::from(vec![
+                " Show more ".into(),
+                "<s> ".blue().bold(),
+            ]).right_aligned())
             .render(layout[5], buf);
 
         // Action analysis popup

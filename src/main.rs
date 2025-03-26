@@ -228,6 +228,8 @@ fn run_interactive(_game: &str) {
         actions_state: ListState::default(),
         analyses: HashMap::new(),
         show_action_details: false,
+        show_heuristic_details: false,
+        show_state_details: false,
         heuristics: vec![
             Heuristic {
                 name: "greedy".to_string(),
@@ -273,11 +275,13 @@ fn run_interactive(_game: &str) {
 
             match event::read().unwrap() {
                 Event::Key(key_event) => {
-                    if app.show_action_details {
-                        // When the popup is open, only exiting is allowed
+                    if app.show_action_details || app.show_heuristic_details || app.show_state_details {
+                        // When any popup is open, only exiting is allowed
                         match key_event.code {
                             KeyCode::Char('q') => {
                                 app.show_action_details = false;
+                                app.show_heuristic_details = false;
+                                app.show_state_details = false;
                             },
                             _ => {}
                         }
@@ -361,7 +365,17 @@ fn run_interactive(_game: &str) {
 
                                     app.show_action_details = true;
                                 }
-                            }
+                            },
+                            KeyCode::Char('h') => {
+                                if let Some(_) = app.actions_state.selected() {
+                                    app.show_heuristic_details = true;
+                                }
+                            },
+                            KeyCode::Char('s') => {
+                                if let Some(_) = app.actions_state.selected() {
+                                    app.show_state_details = true;
+                                }
+                            },
                             _ => {}
                         }
                     }
