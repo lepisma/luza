@@ -7,7 +7,7 @@ use super::azul::{self, Tile, WALL_COLORS};
 use ratatui::layout::{Constraint, Direction, Flex, Layout};
 use ratatui::style::{self, Modifier, Style};
 use ratatui::text::Span;
-use ratatui::widgets::{BorderType, Borders, Clear, HighlightSpacing, List, ListState, Row, StatefulWidget, Table};
+use ratatui::widgets::{BorderType, Borders, Cell, Clear, HighlightSpacing, List, Row, StatefulWidget, Table, TableState};
 
 use ratatui::{
     buffer::Buffer,
@@ -27,8 +27,8 @@ pub struct Move {
 #[derive(Clone, Copy)]
 pub struct ActionAnalysis {
     pub score_gain: i32,
-    pub expected_score: f32,
-    pub win_probability: f32,
+    pub expected_score: Option<f32>,
+    pub win_probability: Option<f32>,
 }
 
 #[derive(Clone)]
@@ -45,7 +45,7 @@ pub struct InteractiveApp {
     pub ply_round: usize,
     pub last_move: Option<Move>,
     pub actions: Vec<azul::Action>,
-    pub actions_state: ListState,
+    pub actions_state: TableState,
     pub analyses: HashMap<azul::Action, ActionAnalysis>,
     pub show_action_details: bool,
     pub show_heuristic_details: bool,
@@ -149,8 +149,7 @@ impl Widget for azul::PlayerState {
     }
 }
 
-// Format action for the main window selector
-fn action_span(action: &azul::Action, action_idx: usize) -> Line {
+fn action_cell(action: &azul::Action) -> Cell {
     let display = match action.action_display_choice {
         ActionDisplay::FactoryDisplay(i) => format!("D{}", i),
         ActionDisplay::Center => "Center".to_string()
@@ -161,14 +160,30 @@ fn action_span(action: &azul::Action, action_idx: usize) -> Line {
         None => "penalty row".to_string()
     };
 
-    Line::from(vec![
-        Span::styled(format!(" {:>3}. ", action_idx), Style::default()),
+    Cell::from(Line::from(vec![
         display.into(),
         " ".into(),
         Span::styled("⬛", Style::default().fg(tile_to_color(action.color_choice))),
         " to ".into(),
         row.into()
-    ])
+    ]))
+}
+
+fn format_gain(gain: i32) -> Span<'static> {
+    if gain == 0 {
+        Span::styled("0", Style::default().blue())
+    } else if gain.is_positive() {
+        Span::styled(format!("+{}", gain), Style::default().green().reversed())
+    } else {
+        Span::styled(gain.to_string(), Style::default().red().reversed())
+    }
+ }
+
+fn format_score(score: Option<f32>) -> Span<'static> {
+    match score {
+        Some(s) => Span::from(s.to_string()),
+        None => Span::styled("NA", Style::default().gray()),
+    }
 }
 
 impl Widget for InteractiveApp {
@@ -303,13 +318,49 @@ impl Widget for InteractiveApp {
         Paragraph::new(last_move_lines)
             .render(actions_layout[0], buf);
 
-        let items = List::new(self.actions.iter().enumerate().map(|(idx, action)| action_span(action, idx)))
-            .highlight_style(Style::default().add_modifier(Modifier::BOLD))
-            .highlight_symbol(" →")
-            .highlight_spacing(HighlightSpacing::Always)
-            .repeat_highlight_symbol(true);
+        let mut rows: Vec<Row> = vec![];
 
-        StatefulWidget::render(items, actions_layout[1], buf, &mut self.actions_state);
+        for (idx, action) in self.actions.iter().enumerate() {
+            if self.analyses.contains_key(action) {
+                let analysis = self.analyses[action];
+                rows.push(Row::new(vec![
+                    Cell::from(format!(" {:>3}. ", idx)),
+                    action_cell(action),
+                    Cell::from(format_gain(analysis.score_gain)),
+                    Cell::from(format_score(analysis.expected_score)),
+                    Cell::from(format_score(analysis.win_probability)),
+                ]));
+            } else {
+                rows.push(Row::new(vec![
+                    Cell::from(idx.to_string()),
+                    action_cell(action),
+                    Cell::from(format_score(None)),
+                    Cell::from(format_score(None)),
+                    Cell::from(format_score(None)),
+                ]));
+            }
+        }
+
+        let table = Table::new(rows, [
+            Constraint::Length(6),
+            Constraint::Percentage(30),
+            Constraint::Length(10),
+            Constraint::Length(10),
+            Constraint::Length(10),
+        ])
+            .highlight_spacing(HighlightSpacing::Always)
+            .highlight_symbol(" →")
+            .row_highlight_style(Style::default().add_modifier(Modifier::BOLD))
+            .column_spacing(1)
+            .header(Row::new(vec![
+                "".into(),
+                Span::styled("Action", Style::default().italic().blue()),
+                Span::styled("Gain", Style::default().italic().blue()),
+                Span::styled("EXP Score", Style::default().italic().blue()),
+                Span::styled("Win P", Style::default().italic().blue()),
+            ]));
+
+        StatefulWidget::render(table, actions_layout[1], buf, &mut self.actions_state);
 
         Block::bordered()
             .border_set(border::THICK)
@@ -317,6 +368,8 @@ impl Widget for InteractiveApp {
             .title_bottom(Line::from(vec![
                 " Teacher Play ".into(),
                 "<SPC> ".blue().bold(),
+                " Project Action ".into(),
+                "<p> ".blue().bold(),
                 " Proceed ".into(),
                 "<RET> ".blue().bold(),
                 " Quit ".into(),
@@ -387,8 +440,8 @@ impl Widget for InteractiveApp {
 
             let table = Table::new([
                 Row::new(vec!["  Immediate Gain".to_string(), analysis.score_gain.to_string()]),
-                Row::new(vec!["  Expected Score".to_string(), analysis.expected_score.to_string()]),
-                Row::new(vec!["  Win Probability".to_string(), analysis.win_probability.to_string()]),
+                Row::new(vec!["  Expected Score".to_string(), if let Some(s) = analysis.expected_score { s.to_string() } else { "NA".to_string() }]),
+                Row::new(vec!["  Win Probability".to_string(), if let Some(p) = analysis.win_probability { p.to_string() } else { "NA".to_string() }]),
             ], [
                 Constraint::Percentage(80),
                 Constraint::Percentage(20),

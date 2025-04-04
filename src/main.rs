@@ -1,5 +1,5 @@
 use games::azul::play_partial_greedy;
-use ratatui::widgets::ListState;
+use ratatui::widgets::{ListState, TableState};
 use tui::{ActionAnalysis, Heuristic, InteractiveApp};
 use std::fs::File;
 use std::io::BufWriter;
@@ -225,7 +225,7 @@ fn run_interactive(_game: &str) {
         ply_round: 0,
         last_move: None,
         actions: Vec::new(),
-        actions_state: ListState::default(),
+        actions_state: TableState::default(),
         analyses: HashMap::new(),
         show_action_details: false,
         show_heuristic_details: false,
@@ -266,7 +266,19 @@ fn run_interactive(_game: &str) {
             }
 
             app.actions = azul::list_valid_actions(&app.state, app.current_player);
-            app.actions.sort_by_key(|a| -azul::calculate_reward(&app.state, app.current_player, a.clone()));
+            for action in &app.actions {
+                if app.analyses.contains_key(action) && app.analyses[action].expected_score.is_some() {
+                    // This is already cached so not doing anything
+                } else {
+                    app.analyses.insert(*action, ActionAnalysis {
+                        score_gain: azul::calculate_reward(&app.state, app.current_player, action.clone()),
+                        expected_score: None,
+                        win_probability: None,
+                    });
+                }
+            }
+
+            app.actions.sort_by_key(|a| -app.analyses[&a].score_gain);
 
             terminal.draw(|frame| {
                 frame.render_widget(app.clone(), frame.area());
@@ -347,22 +359,20 @@ fn run_interactive(_game: &str) {
                                     app.actions_state.select_first();
                                 }
                             },
-                            KeyCode::Char('a') => {
+                            KeyCode::Char('p') => {
                                 if let Some(action_idx) = app.actions_state.selected() {
                                     let action = app.actions[action_idx];
 
-                                    if !app.analyses.contains_key(&action) {
+                                    if !app.analyses.contains_key(&action) || app.analyses[&action].expected_score == None {
                                         let score_gain = azul::calculate_reward(&app.state, app.current_player, action);
                                         let (expected_score, win_probability) = azul::mcts_q_fn(&app.state, app.current_player, action);
 
                                         app.analyses.insert(action, ActionAnalysis {
                                             score_gain,
-                                            expected_score,
-                                            win_probability,
+                                            expected_score: Some(expected_score),
+                                            win_probability: Some(win_probability),
                                         });
                                     }
-
-                                    app.show_action_details = true;
                                 }
                             },
                             KeyCode::Char('h') => {
