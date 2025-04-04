@@ -233,7 +233,6 @@ fn run_interactive(_game: &str) {
         heuristics: vec![
             Heuristic {
                 name: "greedy".to_string(),
-                description: None,
                 function: play_partial_greedy,
             }
         ]
