@@ -7,7 +7,7 @@ use super::azul::{self, Tile, WALL_COLORS};
 use ratatui::layout::{Constraint, Direction, Flex, Layout};
 use ratatui::style::{self, Modifier, Style};
 use ratatui::text::Span;
-use ratatui::widgets::{BorderType, Borders, Cell, Clear, HighlightSpacing, List, Row, StatefulWidget, Table, TableState};
+use ratatui::widgets::{BorderType, Borders, Cell, Clear, HighlightSpacing, Row, StatefulWidget, Table, TableState};
 
 use ratatui::{
     buffer::Buffer,
@@ -17,6 +17,12 @@ use ratatui::{
     text::{Line, Text},
     widgets::{Block, Paragraph, Widget},
 };
+
+// Text based markers for various displays
+const TILE_M: &str = "⬛";
+const TILE_EMPTY_M: &str = "⬜";
+const STARTING_M: &str = "1";
+const FLOOR_M: &str = "⬤";
 
 #[derive(Clone)]
 pub struct Move {
@@ -69,15 +75,15 @@ impl Widget for azul::CenterState {
 
         let mut center_line = vec![" Center:".into()];
         if self.starting_marker {
-            center_line.push(Span::styled(" 1", Style::default().fg(style::Color::Blue)));
+            center_line.push(Span::styled(format!(" {STARTING_M}"), Style::default().fg(style::Color::Blue)));
         }
 
         if self.tiles.is_empty() {
-            center_line.push(Span::styled(" ⬜", Style::default().fg(style::Color::Gray)));
+            center_line.push(Span::styled(format!(" {TILE_EMPTY_M}"), Style::default().fg(style::Color::Gray)));
         } else {
             for (&tile, &count) in self.tiles.iter() {
                 for _ in 0..count {
-                    center_line.push(Span::styled(" ⬛", Style::default().fg(tile_to_color(tile))));
+                    center_line.push(Span::styled(format!(" {TILE_M}"), Style::default().fg(tile_to_color(tile))));
                 }
             }
         }
@@ -107,14 +113,14 @@ impl Widget for azul::PlayerState {
                 } else {
                     match self.pattern_lines[i] {
                         (None, _) => {
-                            Span::styled(" ⬜", Style::default().fg(style::Color::Gray))
+                            Span::styled(format!(" {TILE_EMPTY_M}"), Style::default().fg(style::Color::Gray))
                         },
                         (Some(tile), count) => {
                             let pos = 4 - j;
                             if pos < count {
-                                Span::styled(" ⬛", Style::default().fg(tile_to_color(tile)))
+                                Span::styled(format!(" {TILE_M}"), Style::default().fg(tile_to_color(tile)))
                             } else {
-                                Span::styled(" ⬜", Style::default().fg(style::Color::Gray))
+                                Span::styled(format!(" {TILE_EMPTY_M}"), Style::default().fg(style::Color::Gray))
                             }
                         }
                     }
@@ -124,7 +130,7 @@ impl Widget for azul::PlayerState {
             row.push("  ".into());
 
             for j in 0..cols {
-                let text = if self.wall[i][j] { "⬛ " } else { "⬜ " };
+                let text = if self.wall[i][j] { format!("{TILE_M} ") } else { format!("{TILE_EMPTY_M} ") };
                 row.push(Span::styled(text, Style::default().fg(tile_to_color(WALL_COLORS[i][j]))));
             }
             grid_lines.push(Line::from(row));
@@ -134,13 +140,13 @@ impl Widget for azul::PlayerState {
 
         let mut row = vec![Span::styled(" ", Style::default())];
         if self.starting_marker {
-            row.push(Span::styled(" 1", Style::default().fg(style::Color::Red)));
+            row.push(Span::styled(format!(" {STARTING_M}"), Style::default().fg(style::Color::Red)));
         }
         for i in 0..7 {
             if i < self.floor_line {
-                row.push(Span::styled(" ⬤", Style::default().fg(style::Color::Red)));
+                row.push(Span::styled(format!(" {FLOOR_M}"), Style::default().fg(style::Color::Red)));
             } else {
-                row.push(Span::styled(" ⬤", Style::default().fg(style::Color::Gray)));
+                row.push(Span::styled(format!(" {FLOOR_M}"), Style::default().fg(style::Color::Gray)));
             }
         }
         grid_lines.push(Line::from(row));
@@ -163,7 +169,7 @@ fn action_cell(action: &azul::Action) -> Cell {
     Cell::from(Line::from(vec![
         display.into(),
         " ".into(),
-        Span::styled("⬛", Style::default().fg(tile_to_color(action.color_choice))),
+        Span::styled(TILE_M, Style::default().fg(tile_to_color(action.color_choice))),
         " to ".into(),
         row.into()
     ]))
@@ -239,12 +245,12 @@ impl Widget for InteractiveApp {
 
             for (&tile, &count) in fd.iter() {
                 for _ in 0..count {
-                    tile_spans.push(Span::styled("⬛ ", Style::default().fg(tile_to_color(tile))));
+                    tile_spans.push(Span::styled(format!("{TILE_M} "), Style::default().fg(tile_to_color(tile))));
                 }
             }
 
             for _ in 0..(4 - n_tiles) {
-                tile_spans.push(Span::styled("⬜ ", Style::default().fg(style::Color::Gray)));
+                tile_spans.push(Span::styled(format!("{TILE_EMPTY_M} "), Style::default().fg(style::Color::Gray)));
             }
 
             lines.push(Line::from(vec![
@@ -305,7 +311,7 @@ impl Widget for InteractiveApp {
                     format!("        Last Move by P{}: ", mov.player).italic().into(),
                     display.into(),
                     " ".into(),
-                    Span::styled("⬛", Style::default().fg(tile_to_color(mov.action.color_choice))),
+                    Span::styled(TILE_M, Style::default().fg(tile_to_color(mov.action.color_choice))),
                     " to ".into(),
                     row.into()
                 ]));
@@ -428,7 +434,7 @@ impl Widget for InteractiveApp {
                 format!("  Move by P{}: ", self.current_player).italic().into(),
                 selected_display.into(),
                 " ".into(),
-                Span::styled("⬛", Style::default().fg(tile_to_color(selected_action.color_choice))),
+                Span::styled(TILE_M, Style::default().fg(tile_to_color(selected_action.color_choice))),
                 " to ".into(),
                 selected_row.into()
             ]));

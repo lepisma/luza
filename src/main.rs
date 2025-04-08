@@ -1,5 +1,5 @@
 use games::azul::play_partial_greedy;
-use ratatui::widgets::{ListState, TableState};
+use ratatui::widgets::TableState;
 use tui::{ActionAnalysis, Heuristic, InteractiveApp};
 use std::fs::File;
 use std::io::BufWriter;
